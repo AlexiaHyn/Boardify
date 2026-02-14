@@ -14,8 +14,8 @@ class Settings(BaseSettings):
         "https://*.modal.run",
     ]
 
-    # OpenAI – injected by Modal Secret at runtime
-    OPENAI_API_KEY: str = ""
+    # Perplexity – injected by Modal Secret at runtime
+    PERPLEXITY_API_KEY: str = ""
 
     model_config = {"env_file": ".env", "extra": "ignore"}
 

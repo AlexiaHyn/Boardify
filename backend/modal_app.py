@@ -17,8 +17,7 @@ image = (
     modal.Image.debian_slim(python_version="3.11")
     .pip_install(
         "fastapi[standard]>=0.115.0",
-        "openai>=1.14.0",
-        "Pillow>=10.0.0",
+        "openai>=1.14.0",  # used as Perplexity API client (OpenAI-compatible)
         "pydantic>=2.10.0",
         "pydantic-settings>=2.7.0",
         "python-dotenv>=1.0.0",
@@ -26,14 +25,14 @@ image = (
     .add_local_dir("app", remote_path="/root/app")
 )
 
-modal_app = modal.App("boardify", image=image)
+app = modal.App("boardify", image=image)
 
 
 # ---------------------------------------------------------------------------
 # Serve the FastAPI app through Modal
 # ---------------------------------------------------------------------------
-@modal_app.function(
-    secrets=[modal.Secret.from_name("openai-secret")],
+@app.function(
+    secrets=[modal.Secret.from_name("perplexity-secret")],
     timeout=180,
 )
 @modal.asgi_app()
