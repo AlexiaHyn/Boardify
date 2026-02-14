@@ -1,0 +1,424 @@
+{
+	"meta": {
+		"game_name": "Uno",
+		"version": "2.0",
+		"player_count": { "min": 2, "max": 10 },
+		"win_condition": "first_empty_hand"
+	},
+
+	"assets": {
+		"deck_manifest": [
+			{
+				"id": "{color}_0",
+				"template_vars": {
+					"color": ["red", "blue", "green", "yellow"]
+				},
+				"data": { "color": "{color}", "type": "number", "value": 0 },
+				"img": "{color}_0.png",
+				"per_combination": 1
+			},
+			{
+				"id": "{color}_{value}",
+				"template_vars": {
+					"color": ["red", "blue", "green", "yellow"],
+					"value": [1, 2, 3, 4, 5, 6, 7, 8, 9]
+				},
+				"data": {
+					"color": "{color}",
+					"type": "number",
+					"value": "{value}"
+				},
+				"img": "{color}_{value}.png",
+				"per_combination": 2
+			},
+			{
+				"id": "{color}_skip",
+				"template_vars": {
+					"color": ["red", "blue", "green", "yellow"]
+				},
+				"data": { "color": "{color}", "type": "skip", "value": null },
+				"img": "{color}_skip.png",
+				"per_combination": 2
+			},
+			{
+				"id": "{color}_reverse",
+				"template_vars": {
+					"color": ["red", "blue", "green", "yellow"]
+				},
+				"data": {
+					"color": "{color}",
+					"type": "reverse",
+					"value": null
+				},
+				"img": "{color}_reverse.png",
+				"per_combination": 2
+			},
+			{
+				"id": "{color}_draw2",
+				"template_vars": {
+					"color": ["red", "blue", "green", "yellow"]
+				},
+				"data": {
+					"color": "{color}",
+					"type": "draw_two",
+					"value": null
+				},
+				"img": "{color}_draw2.png",
+				"per_combination": 2
+			},
+			{
+				"id": "wild",
+				"data": { "color": "any", "type": "wild", "value": null },
+				"img": "wild.png",
+				"per_combination": 4
+			},
+			{
+				"id": "wild_draw4",
+				"data": {
+					"color": "any",
+					"type": "wild_draw_four",
+					"value": null
+				},
+				"img": "wild_draw4.png",
+				"per_combination": 4
+			}
+		]
+	},
+
+	"zones": {
+		"draw_pile": {
+			"behavior": "stack",
+			"visibility": "hidden",
+			"on_empty": {
+				"sequence": [
+					{
+						"op": "move_all_except_top",
+						"from": "discard_pile",
+						"to": "draw_pile"
+					},
+					{ "op": "shuffle", "zone": "draw_pile" }
+				]
+			}
+		},
+		"discard_pile": {
+			"behavior": "stack",
+			"visibility": "top_only"
+		},
+		"player_hand": {
+			"behavior": "hand_fan",
+			"visibility": "owner_only",
+			"per_player": true
+		}
+	},
+
+	"variables": {
+		"global": {
+			"turn_index": { "type": "number", "default": 0 },
+			"play_direction": { "type": "number", "default": 1 },
+			"current_color": { "type": "string", "default": null },
+			"stack_penalty": { "type": "number", "default": 0 }
+		},
+		"per_player": {
+			"called_uno": { "type": "boolean", "default": false },
+			"has_acted": { "type": "boolean", "default": false }
+		}
+	},
+
+	"card_effects": [
+		{
+			"match": { "data.type": "skip" },
+			"sequence": [{ "op": "advance_turn", "skip": 1 }]
+		},
+		{
+			"match": { "data.type": "reverse" },
+			"sequence": [
+				{
+					"op": "mutate_global",
+					"key": "play_direction",
+					"mutation": "negate"
+				}
+			]
+		},
+		{
+			"match": { "data.type": "draw_two" },
+			"sequence": [
+				{
+					"op": "mutate_global",
+					"key": "stack_penalty",
+					"mutation": "add",
+					"operand": 2
+				},
+				{ "op": "advance_turn", "skip": 1 }
+			]
+		},
+		{
+			"match": { "data.type": "wild_draw_four" },
+			"sequence": [
+				{
+					"op": "mutate_global",
+					"key": "stack_penalty",
+					"mutation": "add",
+					"operand": 4
+				},
+				{ "op": "advance_turn", "skip": 1 }
+			]
+		}
+	],
+
+	"fsm": {
+		"turn_phases": [
+			"turn_start",
+			"await_action",
+			"resolve_effects",
+			"turn_end"
+		],
+
+		"routines": {
+			"setup": [
+				{
+					"op": "spawn_from_manifest",
+					"manifest": "deck_manifest",
+					"dest": "draw_pile"
+				},
+				{ "op": "shuffle", "zone": "draw_pile" },
+				{
+					"op": "deal",
+					"from": "draw_pile",
+					"count": 7,
+					"to": "all_players"
+				},
+				{
+					"op": "move",
+					"from": "draw_pile",
+					"count": 1,
+					"to": "discard_pile"
+				},
+				{
+					"op": "set_global",
+					"key": "current_color",
+					"value": "$zone.discard_pile.top.data.color"
+				},
+				{ "op": "transition_phase", "to": "turn_start" }
+			],
+
+			"turn_start": [
+				{ "op": "set_player_var", "key": "has_acted", "value": false },
+				{ "op": "set_player_var", "key": "called_uno", "value": false },
+				{
+					"op": "branch",
+					"condition": {
+						"op": "gt",
+						"val1": "$global.stack_penalty",
+						"val2": 0
+					},
+					"if_true": [
+						{
+							"op": "move",
+							"from": "draw_pile",
+							"count": "$global.stack_penalty",
+							"to": "$player.hand"
+						},
+						{
+							"op": "set_global",
+							"key": "stack_penalty",
+							"value": 0
+						},
+						{ "op": "transition_phase", "to": "turn_end" }
+					],
+					"if_false": [
+						{ "op": "transition_phase", "to": "await_action" }
+					]
+				}
+			],
+
+			"resolve_effects": [
+				{
+					"op": "trigger_routine",
+					"name": "_eval_card_effects",
+					"args": { "card": "$card" }
+				},
+				{ "op": "transition_phase", "to": "turn_end" }
+			],
+
+			"turn_end": [
+				{
+					"op": "branch",
+					"condition": {
+						"op": "and",
+						"args": [
+							{
+								"op": "eq",
+								"val1": "$player.hand.count",
+								"val2": 1
+							},
+							{
+								"op": "eq",
+								"val1": "$player.called_uno",
+								"val2": false
+							}
+						]
+					},
+					"if_true": [
+						{
+							"op": "log",
+							"message": "Uno penalty: player did not call Uno"
+						},
+						{
+							"op": "move",
+							"from": "draw_pile",
+							"count": 2,
+							"to": "$player.hand"
+						}
+					],
+					"if_false": []
+				},
+				{ "op": "advance_turn" },
+				{ "op": "transition_phase", "to": "turn_start" }
+			]
+		},
+
+		"actions": {
+			"play_card": {
+				"phase": "await_action",
+				"trigger": "click_card",
+				"source_zone": "player_hand",
+				"mutex_group": "play_or_draw",
+				"max_per_turn": 1,
+				"conditions": [
+					{
+						"op": "or",
+						"args": [
+							{
+								"op": "eq",
+								"val1": "$card.data.color",
+								"val2": "$global.current_color"
+							},
+							{
+								"op": "eq",
+								"val1": "$card.data.color",
+								"val2": "any"
+							},
+							{
+								"op": "and",
+								"args": [
+									{
+										"op": "neq",
+										"val1": "$card.data.value",
+										"val2": null
+									},
+									{
+										"op": "eq",
+										"val1": "$card.data.value",
+										"val2": "$zone.discard_pile.top.data.value"
+									}
+								]
+							},
+							{
+								"op": "eq",
+								"val1": "$card.data.type",
+								"val2": "$zone.discard_pile.top.data.type"
+							}
+						]
+					}
+				],
+				"sequence": [
+					{ "op": "move", "entity": "$card", "to": "discard_pile" },
+					{
+						"op": "branch",
+						"condition": {
+							"op": "eq",
+							"val1": "$card.data.color",
+							"val2": "any"
+						},
+						"if_true": [
+							{
+								"op": "prompt",
+								"player": "$current_player",
+								"kind": "choose_option",
+								"options": ["red", "blue", "green", "yellow"],
+								"message": "Choose a color",
+								"store_as": "chosen_color"
+							},
+							{
+								"op": "set_global",
+								"key": "current_color",
+								"value": "$args.chosen_color"
+							}
+						],
+						"if_false": [
+							{
+								"op": "set_global",
+								"key": "current_color",
+								"value": "$card.data.color"
+							}
+						]
+					},
+					{
+						"op": "branch",
+						"condition": {
+							"op": "eq",
+							"val1": "$player.hand.count",
+							"val2": 0
+						},
+						"if_true": [
+							{ "op": "game_over", "winner": "$current_player" }
+						],
+						"if_false": []
+					},
+					{
+						"op": "set_player_var",
+						"key": "has_acted",
+						"value": true
+					},
+					{ "op": "transition_phase", "to": "resolve_effects" }
+				]
+			},
+
+			"draw_card": {
+				"phase": "await_action",
+				"trigger": "click_zone",
+				"source_zone": "draw_pile",
+				"mutex_group": "play_or_draw",
+				"max_per_turn": 1,
+				"conditions": [],
+				"sequence": [
+					{
+						"op": "move",
+						"from": "draw_pile",
+						"count": 1,
+						"to": "$player.hand",
+						"store_as": "drawn_card"
+					},
+					{
+						"op": "set_player_var",
+						"key": "has_acted",
+						"value": true
+					},
+					{ "op": "transition_phase", "to": "turn_end" }
+				]
+			},
+
+			"call_uno": {
+				"phase": "await_action",
+				"trigger": "click_button",
+				"ui_label": "UNO!",
+				"mutex_group": null,
+				"max_per_turn": 1,
+				"conditions": [
+					{
+						"op": "eq",
+						"val1": "$player.hand.count",
+						"val2": 2
+					}
+				],
+				"sequence": [
+					{
+						"op": "set_player_var",
+						"key": "called_uno",
+						"value": true
+					}
+				]
+			}
+		}
+	}
+}
