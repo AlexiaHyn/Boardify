@@ -3,13 +3,13 @@ name: DSL Pipeline Generalization
 overview: Build Pydantic models that validate the card game DSL, prompt templates for Perplexity research and DSL generation via OpenAI Codex 5.3 High, and a pipeline that chains research -> generation -> validation with retry. Late stage (future) pipes validated DSL into Claude for code generation against a templated board game webapp.
 todos:
     - id: pydantic-schemas
-      content: "Build Pydantic models: primitives.py, operations.py (~24 op types with discriminated union including peek, insert_at, choose_player, eliminate_player, choose_from_zone), components.py (Zone with on_draw triggers), actions.py (Action with reaction_window, card_count, card_match_rule, any_phase, nullable max_per_turn), game.py with cross-reference validators, and verify uno.json validates against GameSchema"
+      content: "Build Pydantic models: research.py (ResearchedRules with CardTypeResearch, ZoneResearch, SpecialMechanic -- structured Stage 1 output for form controls), primitives.py, operations.py (~24 op types with discriminated union), components.py (Zone with on_draw triggers), actions.py (Action with reaction_window, card_count, card_match_rule, any_phase, nullable max_per_turn), game.py with cross-reference validators, and verify uno.json validates against GameSchema"
       status: pending
     - id: prompt-templates
       content: "Write prompt templates for Codex 5.3 High: Perplexity research prompt (structured sections mapping to DSL including INTERRUPT/REACTION MECHANICS and COMBO/MULTI-CARD PLAY sections), two-phase generation prompts (plan then JSON), and retry prompt with validation error feedback"
       status: pending
     - id: pipeline-impl
-      content: "Implement pipeline: research.py (Perplexity Sonar call), generate.py (Codex 5.3 High plan + DSL generation + Pydantic validation retry loop), orchestrator.py (chains all steps, SSE streaming)"
+      content: "Implement pipeline: research.py (Perplexity Sonar call + Codex parse to ResearchedRules + serialize_to_rules_text), generate.py (Codex 5.3 High plan + DSL generation + Pydantic validation retry loop), orchestrator.py (chains all steps, SSE streaming, research_override support)"
       status: pending
     - id: api-endpoint
       content: "Add POST /api/v1/generate endpoint with SSE streaming: accepts game name, streams stage progress, returns validated GameSchema JSON. Add GET /api/v1/generate/{job_id} for status polling fallback."
@@ -24,17 +24,28 @@ isProject: false
 
 ## Architecture Overview
 
-The pipeline has 4 stages. Stages 1-3 are implemented now. Stage 4 is a future late-stage where Claude generates code against the templated webapp.
+The pipeline has 5 stages. Stages 1, 2, and 3 are implemented now. Stages 1.5 and 4 are future work.
 
 ```mermaid
 flowchart TB
     subgraph stage1 [Stage 1: Research]
         A[User Input: game name] --> B[Perplexity Sonar]
-        B --> C[Structured rules document]
+        B --> B2[Markdown rules text]
+        B2 --> B3[Codex 5.3 High: parse to JSON]
+        B3 --> C[ResearchedRules JSON]
+    end
+
+    subgraph stage15 [Stage 1.5: Rule Editing -- FUTURE]
+        C --> C2[Frontend renders form controls]
+        C2 --> C3{User edits?}
+        C3 -->|yes| C4[Updated ResearchedRules]
+        C3 -->|no| C5[Pass through]
+        C4 --> C6[serialize_to_rules_text]
+        C5 --> C6
     end
 
     subgraph stage2 [Stage 2: DSL Generation]
-        C --> D[Codex 5.3 High: game plan]
+        C6 --> D[Codex 5.3 High: game plan]
         D --> E[Codex 5.3 High: DSL JSON]
     end
 
@@ -55,8 +66,282 @@ flowchart TB
 ### Provider roles
 
 - **Perplexity Sonar** -- web search for authoritative game rules (Stage 1)
+- **User** -- reviews and optionally edits the researched rules (Stage 1.5, future). Can correct errors, add house rules, remove unwanted mechanics, or clarify ambiguities before DSL generation.
 - **OpenAI Codex 5.3 High** -- DSL plan generation and JSON schema output (Stage 2), retry corrections (Stage 3)
 - **Claude** -- code generation against the templated board game webapp (Stage 4, future). Receives the validated DSL JSON + the template app source and produces a modified game instance with all components, game logic, and WebSocket event handlers wired up.
+
+### Stage 1 output: structured ResearchedRules model
+
+The Perplexity response is markdown text, but the pipeline needs structured data that:
+
+1. The frontend can render as form controls (number inputs, toggles, dropdowns)
+2. The user can directly edit (card counts, player range, enable/disable mechanics)
+3. Can be serialized back to text for Stage 2 (Codex DSL generation)
+
+**Two-step approach:**
+
+- Step 1a: Perplexity Sonar returns markdown (good at web search, natural text)
+- Step 1b: Codex parses the markdown into `ResearchedRules` JSON (structured output validated by Pydantic)
+
+```mermaid
+flowchart LR
+    PX[Perplexity Sonar] -->|markdown| Parse[Codex 5.3 High]
+    Parse -->|JSON| RR[ResearchedRules]
+    RR --> Form[Frontend form controls]
+    Form -->|user edits| RR2[Edited ResearchedRules]
+    RR2 -->|serialize to text| Stage2[Stage 2: DSL Generation]
+```
+
+File: `backend/app/schemas/research.py`
+
+```python
+class CardTypeResearch(BaseModel):
+    """A distinct card type. Frontend renders as a row in an editable table."""
+    name: str = Field(..., description="Card type name, e.g. 'Skip', 'Wild Draw Four', 'Exploding Kitten'")
+    count: int = Field(..., ge=0, description="Number of this card in the deck. UI: number spinner.")
+    count_rule: str | None = Field(
+        None,
+        description="Dynamic count formula if count depends on player count. "
+        "e.g. 'players - 1' for Exploding Kittens. UI: shown as help text next to count."
+    )
+    properties: dict[str, str | int | None] = Field(
+        default_factory=dict,
+        description="Card attributes: {color, suit, rank, value, type}. UI: key-value pills."
+    )
+    effect: str = Field("", description="What this card does when played/drawn. UI: text input.")
+    category: str | None = Field(
+        None,
+        description="Grouping label: 'number', 'action', 'wild', 'cat', 'explosive', etc. "
+        "UI: used to group cards in the table."
+    )
+
+
+class ZoneResearch(BaseModel):
+    """A game zone. Frontend renders as a card in a zone list."""
+    name: str = Field(..., description="Zone identifier, e.g. 'draw_pile', 'discard_pile', 'player_hand'")
+    display_name: str = Field(..., description="Human-readable name, e.g. 'Draw Pile'")
+    description: str = Field("", description="What this zone is for")
+    visibility: str = Field(..., description="Who can see cards: hidden, top_only, owner_only, all")
+    per_player: bool = Field(False, description="Is there one per player (e.g. hand)?")
+
+
+class TurnPhaseResearch(BaseModel):
+    """A phase in the turn structure."""
+    name: str
+    description: str
+    mandatory: bool = Field(True, description="Must the player complete this phase? UI: toggle.")
+
+
+class SpecialMechanic(BaseModel):
+    """A game mechanic that can be toggled on/off by the user."""
+    name: str = Field(..., description="Short name, e.g. 'Nope interrupts', 'Stacking Draw 2'")
+    description: str = Field(..., description="What this mechanic does")
+    enabled: bool = Field(True, description="UI: toggle switch. User can disable to simplify game.")
+    category: str = Field(
+        "core",
+        description="'core' (required for game to work), 'optional' (can be toggled), 'house_rule' (user-added)"
+    )
+
+
+class CardEffectResearch(BaseModel):
+    """What a card type does when played."""
+    card_name: str = Field(..., description="Which card type this effect applies to")
+    trigger: str = Field("on_play", description="When the effect fires: on_play, on_draw, on_discard, combo")
+    description: str = Field(..., description="What happens. UI: editable text area.")
+    targets_player: bool = Field(False, description="Does this effect target another player?")
+
+
+class ResearchedRules(BaseModel):
+    """Structured research output. Every field maps to a frontend form control.
+
+    This model is what the frontend renders as an editable form.
+    Users adjust card counts, toggle mechanics, set player ranges, etc.
+    """
+
+    # --- General game controls (top of form) ---
+    game_name: str = Field(..., description="UI: text input, pre-filled")
+    player_count_min: int = Field(..., ge=1, description="UI: number spinner")
+    player_count_max: int = Field(..., ge=1, description="UI: number spinner")
+    estimated_play_time_minutes: int | None = Field(None, ge=1, description="UI: number spinner, optional")
+    win_condition_type: str = Field(
+        ...,
+        description="UI: dropdown. Options: first_empty_hand, last_alive, highest_score, "
+        "most_sets, best_hand, custom"
+    )
+    win_condition_description: str = Field(..., description="UI: text input for details")
+
+    # --- Deck composition (editable card table) ---
+    card_types: list[CardTypeResearch] = Field(
+        ...,
+        description="UI: editable table. Columns: name, count (spinner), properties, effect. "
+        "User can add/remove rows."
+    )
+
+    # --- Game structure ---
+    zones: list[ZoneResearch] = Field(..., description="UI: list of zone cards")
+    turn_phases: list[TurnPhaseResearch] = Field(
+        ..., description="UI: ordered list with drag-to-reorder and mandatory toggle"
+    )
+
+    # --- Card effects (editable) ---
+    card_effects: list[CardEffectResearch] = Field(
+        default_factory=list,
+        description="UI: expandable list per card type"
+    )
+
+    # --- Mechanics toggles ---
+    special_mechanics: list[SpecialMechanic] = Field(
+        default_factory=list,
+        description="UI: toggle list. Core mechanics shown but not disableable. "
+        "Optional mechanics have toggle switches. User can add house rules."
+    )
+
+    # --- Flags (derived from mechanics, shown as info chips) ---
+    has_interrupts: bool = Field(False, description="Does the game have out-of-turn reaction cards?")
+    has_player_elimination: bool = Field(False, description="Can players be eliminated mid-game?")
+    has_combos: bool = Field(False, description="Can multiple cards be played together?")
+    has_scoring: bool = Field(False, description="Does the game use a point system?")
+    has_betting: bool = Field(False, description="Does the game have a pot/betting mechanic?")
+
+    # --- Reference ---
+    raw_rules_text: str = Field(
+        ...,
+        description="Original Perplexity markdown. UI: collapsible 'Raw Rules' section at bottom. "
+        "Read-only reference so user can cross-check edits."
+    )
+
+    # --- House rules (user-added free text) ---
+    additional_rules: str | None = Field(
+        None,
+        description="UI: text area at bottom. User can type custom rules or clarifications. "
+        "Appended as-is to the rules text sent to Stage 2."
+    )
+```
+
+**Parsing prompt** (Codex extracts structured data from Perplexity markdown):
+
+File: `backend/app/pipeline/prompts/parse_research.py`
+
+```python
+PARSE_SYSTEM = """You are a data extraction engine. Parse the game rules document
+into the exact JSON schema provided. Extract every card type with its EXACT count.
+If a count depends on player number, put the formula in count_rule and use the
+count for a typical game (e.g. 4 players)."""
+
+PARSE_USER = """## Raw Rules Document
+{raw_rules_text}
+
+## Output JSON Schema
+{research_schema}
+
+Parse the rules into this exact schema. Include ALL card types, ALL zones,
+ALL turn phases, ALL special mechanics. Set the boolean flags (has_interrupts,
+has_player_elimination, etc.) based on the rules content.
+
+Output ONLY valid JSON."""
+```
+
+**Serialization back to text** (for Stage 2):
+
+When the user finishes editing and the pipeline continues to Stage 2, the `ResearchedRules` is serialized back to a rules text document that Codex can consume:
+
+```python
+def serialize_to_rules_text(rules: ResearchedRules) -> str:
+    """Convert structured ResearchedRules back to markdown for Stage 2."""
+    sections = []
+
+    sections.append(f"# {rules.game_name}")
+    sections.append(f"Players: {rules.player_count_min}-{rules.player_count_max}")
+    if rules.estimated_play_time_minutes:
+        sections.append(f"Play time: ~{rules.estimated_play_time_minutes} minutes")
+    sections.append(f"Win condition: {rules.win_condition_type} -- {rules.win_condition_description}")
+
+    sections.append("\n## DECK COMPOSITION")
+    for ct in rules.card_types:
+        count_note = f" ({ct.count_rule})" if ct.count_rule else ""
+        props = ", ".join(f"{k}={v}" for k, v in ct.properties.items()) if ct.properties else ""
+        sections.append(f"- {ct.name}: {ct.count} cards{count_note}. {props}. {ct.effect}")
+
+    sections.append("\n## GAME ZONES")
+    for z in rules.zones:
+        sections.append(f"- {z.display_name} ({z.name}): {z.description}. Visibility: {z.visibility}")
+
+    sections.append("\n## TURN STRUCTURE")
+    for i, tp in enumerate(rules.turn_phases, 1):
+        sections.append(f"{i}. {tp.name}: {tp.description} {'(mandatory)' if tp.mandatory else '(optional)'}")
+
+    sections.append("\n## CARD EFFECTS")
+    for ce in rules.card_effects:
+        sections.append(f"- {ce.card_name} ({ce.trigger}): {ce.description}")
+
+    sections.append("\n## SPECIAL MECHANICS")
+    for sm in rules.special_mechanics:
+        if sm.enabled:
+            sections.append(f"- {sm.name}: {sm.description}")
+        else:
+            sections.append(f"- ~~{sm.name}~~: DISABLED BY USER")
+
+    if rules.additional_rules:
+        sections.append(f"\n## ADDITIONAL RULES (USER)\n{rules.additional_rules}")
+
+    return "\n".join(sections)
+```
+
+### Stage 1.5 design notes (future, not implemented now)
+
+After Stage 1 produces `ResearchedRules`, the user gets a chance to review and edit before DSL generation. This is important because:
+
+- Perplexity may get card counts wrong or miss obscure rules
+- Users may want to add house rules (e.g. "stacking Draw 2 cards")
+- Some games have regional variants the user wants to pick
+- The user may want to simplify a complex game (disable betting in Poker, disable Nope cards, etc.)
+
+**Frontend form layout** (how `ResearchedRules` maps to UI):
+
+```
++----------------------------------------------+
+| Game: [Exploding Kittens     ]  (text input)  |
+| Players: [2] to [5]           (number spinners)|
+| Play time: [15] min           (number spinner) |
+| Win condition: [Last alive v]  (dropdown)      |
++----------------------------------------------+
+
+| DECK COMPOSITION                              |
+| Name          | Count | Properties  | Effect   |
+|---------------|-------|-------------|----------|
+| Exploding K.  | [3]   | explosive   | Death    |
+| Defuse        | [6]   | action      | Save     |
+| Attack        | [4]   | action      | 2 turns  |
+| Skip          | [4]   | action      | No draw  |
+| Nope          | [5]   | reaction    | Cancel   |
+| Tacocat       | [4]   | cat         | Combo    |
+| ...           |       |             |          |
+| [+ Add card type]                              |
++----------------------------------------------+
+
+| MECHANICS                                     |
+| [x] Nope interrupts (core)                    |
+| [x] Cat card combos (core)                    |
+| [x] 5-different combo (optional)       [toggle]|
+| [ ] Stacking attacks (house rule)      [toggle]|
+| [+ Add house rule]                             |
++----------------------------------------------+
+
+| ADDITIONAL RULES                               |
+| [                                        ]     |
+| [  Free text area for house rules        ]     |
++----------------------------------------------+
+```
+
+**Architectural impact -- why this shapes the current design:**
+
+The pipeline must be **splittable** at the research boundary. Instead of one continuous stream, we need:
+
+1. **Phase A** (`POST /api/v1/generate/research`) -- runs Stage 1 (Perplexity + Codex parse), returns `ResearchedRules` JSON, stores it keyed by `session_id`
+2. **User edits** -- client renders `ResearchedRules` as form, user modifies fields
+3. **Phase B** (`POST /api/v1/generate/build`) -- accepts `session_id` + edited `ResearchedRules`, serializes to text, runs Stages 2-3
+
+This is why the orchestrator's `generate_game_dsl()` accepts a `research` parameter rather than only `game_name` -- so it can receive pre-edited, serialized rules from Phase A. The current implementation runs both phases back-to-back (no pause), but the interface is already designed to split.
 
 ### Stage 4 design notes (future, not implemented now)
 
@@ -444,7 +729,9 @@ class GameSchema(BaseModel):
 
 ## 2. Orchestration Endpoint and Sequence Diagram
 
-### Sequence diagram -- full pipeline
+### Sequence diagram -- current flow (Stages 1-3, no human edit pause)
+
+This is what we implement now. The pipeline runs straight through. When Stage 1.5 is added later, the split happens at the boundary marked below.
 
 ```mermaid
 sequenceDiagram
@@ -453,7 +740,6 @@ sequenceDiagram
     participant PX as Perplexity Sonar
     participant Codex as Codex 5.3 High
     participant Val as Pydantic Validator
-    participant Claude as Claude Code -- FUTURE
 
     Client->>API: POST /api/v1/generate {game_name}
     API-->>Client: SSE stream opened
@@ -462,11 +748,13 @@ sequenceDiagram
     API-->>Client: event: stage {stage: "research", status: "started"}
     API->>PX: system + user prompt with game_name
     PX-->>API: structured rules document
-    API-->>Client: event: stage {stage: "research", status: "done"}
+    API-->>Client: event: stage {stage: "research", status: "done", data: rules}
+
+    Note over API,Client: --- Stage 1.5 split point (future) ---
 
     Note over API: Stage 2a -- Game Plan
     API-->>Client: event: stage {stage: "plan", status: "started"}
-    API->>Codex: PLAN_SYSTEM + PLAN_USER with research output
+    API->>Codex: PLAN_SYSTEM + PLAN_USER with rules
     Codex-->>API: natural language game plan
     API-->>Client: event: stage {stage: "plan", status: "done"}
 
@@ -495,25 +783,77 @@ sequenceDiagram
 
     API-->>Client: event: result {dsl: GameSchema JSON}
     API-->>Client: SSE stream closed
+```
+
+### Sequence diagram -- future split flow (with Stage 1.5 + Stage 4)
+
+When Stage 1.5 is implemented, the pipeline becomes two separate HTTP requests with a human pause in between.
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant API as FastAPI Backend
+    participant PX as Perplexity Sonar
+    participant User as User in Browser
+    participant Codex as Codex 5.3 High
+    participant Val as Pydantic Validator
+    participant Claude as Claude -- FUTURE
+
+    Note over Client,PX: Phase A -- Research
+    Client->>API: POST /api/v1/generate/research {game_name}
+    API->>PX: structured rules query
+    PX-->>API: rules document
+    API-->>Client: {session_id, rules}
+
+    Note over Client,User: Stage 1.5 -- Human Edit
+    Client->>User: display rules in editable form
+    User->>Client: edits sections, adds house rules
+    Client->>Client: build RuleOverrides
+
+    Note over Client,Val: Phase B -- Generate DSL
+    Client->>API: POST /api/v1/generate/build {session_id, rule_overrides?}
+    API-->>Client: SSE stream opened
+    API->>API: merge_rules(original, overrides)
+    API->>Codex: plan generation
+    Codex-->>API: game plan
+    API->>Codex: DSL JSON generation
+    Codex-->>API: raw JSON
+    API->>Val: validate
+    Val-->>API: GameSchema
+    API-->>Client: event: result {dsl}
 
     Note over Client,Claude: Stage 4 -- FUTURE
     Client->>API: POST /api/v1/codegen {dsl_json, template_id}
-    API->>Claude: DSL JSON + template webapp source files
-    Claude-->>API: modified game source code
-    API-->>Client: game instance files / deployment URL
+    API->>Claude: DSL + template webapp
+    Claude-->>API: modified game code
+    API-->>Client: game instance
 ```
 
 ### Orchestration endpoint -- request/response models
 
 File: `backend/app/routers/generate.py`
 
+The endpoint models are designed so the current all-in-one flow works today, and the split flow (Stage 1.5) can be added later by just adding two new routes that reuse the same orchestrator.
+
 ```python
 from pydantic import BaseModel, Field
 from enum import Enum
 
+
+# --- Current: all-in-one endpoint ---
+
 class GenerateRequest(BaseModel):
+    """All-in-one request. Runs Stages 1-3 back-to-back.
+    When Stage 1.5 is added, callers will use /research + /build instead."""
     game_name: str = Field(..., description="Name of the card game, e.g. 'Exploding Kittens'")
     player_count: int | None = Field(None, description="Override player count for dynamic deck sizing")
+    # Future: accept pre-researched rules to skip Stage 1
+    research_override: str | None = Field(
+        None,
+        description="If provided, skip Perplexity research and use this text as the rules document. "
+        "Enables Stage 1.5: user edits rules externally, then passes them in."
+    )
+
 
 class StageStatus(str, Enum):
     started = "started"
@@ -525,18 +865,55 @@ class StageEvent(BaseModel):
     """SSE event sent during pipeline execution."""
     stage: str  # "research" | "plan" | "dsl" | "validation"
     status: StageStatus
-    attempt: int | None = None  # for retry events
-    detail: str | None = None   # human-readable progress message
+    attempt: int | None = None
+    detail: str | None = None
     elapsed_ms: int | None = None
 
 class GenerateResult(BaseModel):
     """Final SSE event with the validated DSL."""
     game_name: str
     dsl: dict  # The validated GameSchema as JSON
-    research_summary: str | None = None  # condensed rules for debugging
-    stages_elapsed_ms: dict[str, int]  # timing per stage
+    research_output: str | None = None  # full rules text (for Stage 1.5 review)
+    stages_elapsed_ms: dict[str, int]
 
-# Future Stage 4 endpoint (stub)
+
+# --- Future: split endpoints for Stage 1.5 ---
+
+class ResearchRequest(BaseModel):
+    """Phase A: research only. Returns rules for user editing."""
+    game_name: str
+    player_count: int | None = None
+
+class ResearchResult(BaseModel):
+    """Phase A response. Client displays this for user editing."""
+    session_id: str = Field(..., description="Use this to continue in Phase B")
+    game_name: str
+    rules: str = Field(..., description="Structured rules document from Perplexity, in editable markdown sections")
+    elapsed_ms: int
+
+class RuleOverrides(BaseModel):
+    """User edits to apply before DSL generation."""
+    sections: dict[str, str] = Field(
+        default_factory=dict,
+        description="Section name -> replacement text. Keys: 'DECK COMPOSITION', 'TURN STRUCTURE', etc."
+    )
+    appended_rules: str | None = Field(
+        None, description="Free-text house rules appended as an extra section"
+    )
+    removed_sections: list[str] = Field(
+        default_factory=list,
+        description="Section names to remove entirely"
+    )
+
+class BuildRequest(BaseModel):
+    """Phase B: generate DSL from (possibly edited) rules."""
+    session_id: str = Field(..., description="From ResearchResult")
+    rule_overrides: RuleOverrides | None = Field(
+        None, description="User edits. If None, use original research as-is."
+    )
+
+# --- Future: Stage 4 code generation ---
+
 class CodegenRequest(BaseModel):
     dsl_json: dict = Field(..., description="Validated GameSchema JSON from /generate")
     template_id: str = Field("default", description="Which template webapp to use")
@@ -549,6 +926,8 @@ class CodegenResult(BaseModel):
 
 ### Orchestration endpoint -- SSE streaming implementation
 
+The endpoint accepts an optional `research_override` field. If provided, it skips Perplexity and uses the provided text as the rules document. This is what Stage 1.5 will use: the client calls `/research` first, lets the user edit, then calls `/generate` with `research_override` set to the edited text.
+
 ```python
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
@@ -558,18 +937,34 @@ router = APIRouter(prefix="/generate", tags=["generate"])
 
 @router.post("")
 async def generate_game(request: GenerateRequest):
-    """Generate a game DSL via SSE-streamed pipeline."""
+    """Generate a game DSL via SSE-streamed pipeline.
+
+    If research_override is provided, skips Stage 1 (Perplexity) and uses
+    the provided rules text directly. This enables the future Stage 1.5
+    flow where the user edits rules before generation.
+    """
 
     async def event_stream():
         t0 = time.monotonic()
         timings = {}
 
-        # --- Stage 1: Research ---
-        yield sse_event("stage", {"stage": "research", "status": "started"})
-        t1 = time.monotonic()
-        research = await research_game(request.game_name)
-        timings["research"] = int((time.monotonic() - t1) * 1000)
-        yield sse_event("stage", {"stage": "research", "status": "done", "elapsed_ms": timings["research"]})
+        # --- Stage 1: Research (skippable) ---
+        if request.research_override:
+            research = request.research_override
+            yield sse_event("stage", {"stage": "research", "status": "done", "detail": "using provided rules"})
+            timings["research"] = 0
+        else:
+            yield sse_event("stage", {"stage": "research", "status": "started"})
+            t1 = time.monotonic()
+            research = await research_game(request.game_name)
+            timings["research"] = int((time.monotonic() - t1) * 1000)
+            yield sse_event("stage", {
+                "stage": "research", "status": "done",
+                "elapsed_ms": timings["research"],
+            })
+
+        # Emit research text so client can display/cache it for Stage 1.5
+        yield sse_event("research_output", {"rules": research})
 
         # --- Stage 2a: Game Plan ---
         yield sse_event("stage", {"stage": "plan", "status": "started"})
@@ -611,6 +1006,7 @@ async def generate_game(request: GenerateRequest):
         yield sse_event("result", {
             "game_name": request.game_name,
             "dsl": schema.model_dump(by_alias=True),
+            "research_output": research,
             "stages_elapsed_ms": timings,
         })
 
@@ -619,6 +1015,44 @@ async def generate_game(request: GenerateRequest):
 
 def sse_event(event_type: str, data: dict) -> str:
     return f"event: {event_type}\ndata: {json.dumps(data)}\n\n"
+```
+
+### Future split endpoints (Stage 1.5 -- not implemented now)
+
+When Stage 1.5 is added, the flow becomes two requests. These are stubs showing how they reuse the same orchestrator:
+
+```python
+# Phase A: research only
+@router.post("/research")
+async def research_game_rules(request: ResearchRequest):
+    """Run Perplexity research, return rules for user editing."""
+    t0 = time.monotonic()
+    research = await research_game(request.game_name)
+    session_id = str(uuid.uuid4())
+    _sessions[session_id] = {"game_name": request.game_name, "rules": research}
+    return ResearchResult(
+        session_id=session_id,
+        game_name=request.game_name,
+        rules=research,
+        elapsed_ms=int((time.monotonic() - t0) * 1000),
+    )
+
+# Phase B: generate from (edited) rules
+@router.post("/build")
+async def build_game_dsl(request: BuildRequest):
+    """Generate DSL from rules. Apply rule_overrides if provided."""
+    session = _sessions.get(request.session_id)
+    if not session:
+        raise HTTPException(404, "Session not found")
+    rules = session["rules"]
+    if request.rule_overrides:
+        rules = merge_rules(rules, request.rule_overrides)
+    # Reuse the same endpoint by injecting research_override
+    gen_request = GenerateRequest(
+        game_name=session["game_name"],
+        research_override=rules,
+    )
+    return await generate_game(gen_request)
 ```
 
 ### Polling fallback (for clients that cannot use SSE)
@@ -862,27 +1296,40 @@ def _load_example(name: str) -> str:
 
 async def generate_game_dsl(
     game_name: str,
+    research: str | None = None,
     max_retries: int = 3,
     on_stage: Callable | None = None,
 ) -> GameSchema:
     """Full pipeline: research -> plan -> DSL -> validate.
 
+    Args:
+        game_name: Name of the card game.
+        research: Pre-researched rules text. If provided, skips Stage 1
+            (Perplexity). This is the hook for Stage 1.5: the caller
+            runs research separately, lets the user edit, then passes
+            the edited text here.
+        max_retries: Pydantic validation retry attempts.
+        on_stage: Callback for progress events (SSE streaming).
+
     Providers:
-      - Perplexity Sonar for Stage 1 (web search)
+      - Perplexity Sonar for Stage 1 (web search) -- skipped if research is provided
       - OpenAI Codex 5.3 High for Stages 2-3 (generation + retry)
     """
 
-    perplexity = get_model("perplexity", "sonar")
     codex = get_model("openai", "codex-5.3-high")
 
-    # --- Stage 1: Research via Perplexity Sonar ---
-    if on_stage: await on_stage("research", "started")
-    research = generate_text_sync(
-        perplexity,
-        prompt=RESEARCH_USER.format(game_name=game_name),
-        system=RESEARCH_SYSTEM,
-    ).text
-    if on_stage: await on_stage("research", "done")
+    # --- Stage 1: Research via Perplexity Sonar (skippable) ---
+    if research is None:
+        perplexity = get_model("perplexity", "sonar")
+        if on_stage: await on_stage("research", "started")
+        research = generate_text_sync(
+            perplexity,
+            prompt=RESEARCH_USER.format(game_name=game_name),
+            system=RESEARCH_SYSTEM,
+        ).text
+        if on_stage: await on_stage("research", "done")
+    else:
+        if on_stage: await on_stage("research", "done")  # skipped, emit done immediately
 
     # --- Stage 2a: Game plan (natural language reasoning) ---
     if on_stage: await on_stage("plan", "started")
@@ -976,6 +1423,7 @@ The plan phase forces it to explicitly enumerate all components first. The JSON 
 
 New files:
 
+- `[backend/app/schemas/research.py](backend/app/schemas/research.py)` -- ResearchedRules, CardTypeResearch, ZoneResearch, TurnPhaseResearch, SpecialMechanic, CardEffectResearch (structured Stage 1 output that maps to frontend form controls)
 - `[backend/app/schemas/primitives.py](backend/app/schemas/primitives.py)` -- ValueRef, Condition (6 types including HasMatchingCondition, PlayerAliveCondition), PlayerCount
 - `[backend/app/schemas/operations.py](backend/app/schemas/operations.py)` -- ~24 operation models + Operation discriminated union (including peek, insert_at, choose_player, eliminate_player, choose_from_zone)
 - `[backend/app/schemas/components.py](backend/app/schemas/components.py)` -- Zone (with on_draw trigger), DeckManifestEntry, CardEffect, Variables
@@ -985,6 +1433,7 @@ New files:
 - `[backend/app/pipeline/__init__.py](backend/app/pipeline/__init__.py)`
 - `[backend/app/pipeline/prompts/__init__.py](backend/app/pipeline/prompts/__init__.py)`
 - `[backend/app/pipeline/prompts/research.py](backend/app/pipeline/prompts/research.py)` -- Perplexity prompt templates (with interrupt, combo, elimination sections)
+- `[backend/app/pipeline/prompts/parse_research.py](backend/app/pipeline/prompts/parse_research.py)` -- Codex prompt to parse Perplexity markdown into ResearchedRules JSON
 - `[backend/app/pipeline/prompts/generation.py](backend/app/pipeline/prompts/generation.py)` -- DSL generation prompts (with $-reference docs for targeting and reactions)
 - `[backend/app/pipeline/research.py](backend/app/pipeline/research.py)` -- Perplexity research step
 - `[backend/app/pipeline/generate.py](backend/app/pipeline/generate.py)` -- DSL generation + retry step
