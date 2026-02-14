@@ -59,7 +59,7 @@ export default function EditableText({
 	}
 
 	if (editing) {
-		const shared = `w-full rounded-lg border border-indigo-500 bg-slate-900 px-2 py-1 text-white outline-none ring-1 ring-indigo-500/50 transition-all ${inputClassName}`;
+		const shared = `w-full rounded-lg border border-[var(--color-gold)] bg-[var(--color-bg-deep)] px-3 py-1.5 font-body text-[var(--color-cream)] outline-none ring-1 ring-[var(--color-gold)]/30 transition-all ${inputClassName}`;
 
 		return multiline ? (
 			<textarea
@@ -89,15 +89,17 @@ export default function EditableText({
 	return (
 		<Tag
 			onClick={() => setEditing(true)}
-			className={`group relative inline-flex cursor-pointer items-baseline gap-1.5 rounded-lg px-2 py-1 leading-snug transition-all hover:bg-white/5 ${className}`}
+			className={`group relative inline-flex cursor-pointer items-baseline gap-2 rounded-lg border border-transparent px-3 py-1.5 leading-snug transition-all hover:border-[var(--color-border)] hover:bg-[var(--color-gold-muted)] ${className}`}
 			title="Click to edit"
 		>
 			<span className="min-w-0">
 				{value || (
-					<span className="italic text-slate-500">{placeholder}</span>
+					<span className="italic text-[var(--color-stone-dim)]">
+						{placeholder}
+					</span>
 				)}
 			</span>
-			<Pencil className="inline-block h-3 w-3 shrink-0 text-slate-500 opacity-0 transition-opacity group-hover:opacity-100" />
+			<Pencil className="inline-block h-3 w-3 shrink-0 text-[var(--color-gold-dim)] opacity-40 transition-opacity group-hover:opacity-100" />
 		</Tag>
 	);
 }

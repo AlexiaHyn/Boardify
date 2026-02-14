@@ -1,25 +1,33 @@
 import "~/styles/globals.css";
 
 import type { Metadata } from "next";
-import { Geist } from "next/font/google";
+import { Cinzel, Crimson_Pro } from "next/font/google";
 
 export const metadata: Metadata = {
-	title: "Boardify – Around the Table, Around the World",
+	title: "Boardify – Conjure Your Next Great Game",
 	description:
-		"Upload a photo of any board game and get the rules instantly, powered by AI.",
+		"Describe a board game idea and watch it materialize into a complete blueprint, powered by AI.",
 	icons: [{ rel: "icon", url: "/favicon.ico" }],
 };
 
-const geist = Geist({
+const cinzel = Cinzel({
 	subsets: ["latin"],
-	variable: "--font-geist-sans",
+	variable: "--font-display",
+	weight: ["400", "500", "600", "700"],
+});
+
+const crimsonPro = Crimson_Pro({
+	subsets: ["latin"],
+	variable: "--font-body",
+	weight: ["300", "400", "500", "600", "700"],
+	style: ["normal", "italic"],
 });
 
 export default function RootLayout({
 	children,
 }: Readonly<{ children: React.ReactNode }>) {
 	return (
-		<html className={`${geist.variable}`} lang="en">
+		<html className={`${cinzel.variable} ${crimsonPro.variable}`} lang="en">
 			<body>{children}</body>
 		</html>
 	);

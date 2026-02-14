@@ -48,11 +48,11 @@ export default function EditableList({
 				{items.map((item, i) => (
 					<div
 						key={`${i}`}
-						className="group/item flex items-center gap-2 rounded-lg transition-colors hover:bg-white/[0.02]"
+						className="group/item flex items-center gap-2 rounded-lg transition-colors hover:bg-[var(--color-gold-muted)]"
 					>
 						{/* Number label */}
 						{ordered && (
-							<span className="w-7 shrink-0 text-right text-sm font-medium tabular-nums text-slate-500">
+							<span className="w-7 shrink-0 text-right font-display text-sm font-medium tabular-nums text-[var(--color-stone-dim)]">
 								{i + 1}.
 							</span>
 						)}
@@ -63,7 +63,7 @@ export default function EditableList({
 								value={item}
 								onChange={(v) => updateItem(i, v)}
 								placeholder={placeholder}
-								className="text-sm text-slate-300"
+								className="font-body text-sm text-[var(--color-cream-dim)]"
 							/>
 						</div>
 
@@ -73,7 +73,7 @@ export default function EditableList({
 								type="button"
 								onClick={() => moveItem(i, -1)}
 								disabled={i === 0}
-								className="rounded p-1 text-slate-500 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-30"
+								className="rounded p-1 text-[var(--color-stone-dim)] transition-colors hover:bg-[var(--color-gold-muted)] hover:text-[var(--color-cream)] disabled:opacity-30"
 								title="Move up"
 							>
 								<ChevronUp className="h-3.5 w-3.5" />
@@ -82,7 +82,7 @@ export default function EditableList({
 								type="button"
 								onClick={() => moveItem(i, 1)}
 								disabled={i === items.length - 1}
-								className="rounded p-1 text-slate-500 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-30"
+								className="rounded p-1 text-[var(--color-stone-dim)] transition-colors hover:bg-[var(--color-gold-muted)] hover:text-[var(--color-cream)] disabled:opacity-30"
 								title="Move down"
 							>
 								<ChevronDown className="h-3.5 w-3.5" />
@@ -90,7 +90,7 @@ export default function EditableList({
 							<button
 								type="button"
 								onClick={() => removeItem(i)}
-								className="rounded p-1 text-slate-500 transition-colors hover:bg-red-500/20 hover:text-red-400"
+								className="rounded p-1 text-[var(--color-stone-dim)] transition-colors hover:bg-[var(--color-crimson)]/20 hover:text-[var(--color-crimson)]"
 								title="Remove"
 							>
 								<Trash2 className="h-3.5 w-3.5" />
@@ -103,7 +103,7 @@ export default function EditableList({
 			<button
 				type="button"
 				onClick={addItem}
-				className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-indigo-400 transition-colors hover:bg-indigo-500/10 hover:text-indigo-300 ${ordered ? "ml-9" : ""}`}
+				className={`btn-press flex items-center gap-1.5 rounded-lg px-3 py-2 font-body text-sm text-[var(--color-gold-dim)] transition-colors hover:bg-[var(--color-gold-muted)] hover:text-[var(--color-gold)] ${ordered ? "ml-9" : ""}`}
 			>
 				<Plus className="h-4 w-4" />
 				{addLabel}

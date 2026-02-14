@@ -1,9 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import type { RuleBlueprint } from "~/types/game";
-import { ChevronDown, ChevronUp, Plus, Trash2, Minus } from "lucide-react";
-import EditableText from "~/components/ui/EditableText";
+import { Plus, Trash2, Minus, BookOpen } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
 
 interface RuleBlueprintEditorProps {
 	rules: RuleBlueprint[];
@@ -34,9 +33,181 @@ function emptyRule(): RuleBlueprint {
 	};
 }
 
-export default function RuleBlueprintEditor({ rules, onChange }: RuleBlueprintEditorProps) {
-	const [collapsed, setCollapsed] = useState(false);
+function RuleCard({
+	rule,
+	index,
+	onChange,
+	onDelete,
+}: {
+	rule: RuleBlueprint;
+	index: number;
+	onChange: (patch: Partial<RuleBlueprint>) => void;
+	onDelete: () => void;
+}) {
+	return (
+		<motion.div
+			className="group relative rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-deep)]/60 p-5 transition-all hover:border-[var(--color-gold-dim)]/40"
+			initial={{ opacity: 0, y: 15 }}
+			animate={{ opacity: 1, y: 0 }}
+			exit={{ opacity: 0, scale: 0.95 }}
+			transition={{ delay: index * 0.04, duration: 0.3 }}
+		>
+			{/* Delete */}
+			<button
+				type="button"
+				onClick={onDelete}
+				className="absolute top-4 right-4 rounded p-1 text-[var(--color-border)] opacity-0 transition-all hover:text-[var(--color-crimson)] group-hover:opacity-100"
+			>
+				<Trash2 className="h-4 w-4" />
+			</button>
 
+			{/* Name + Type row */}
+			<div className="flex flex-wrap items-center gap-3 pr-10">
+				<div className="form-field flex-1" style={{ minWidth: 160 }}>
+					<label className="form-label">Rule Name</label>
+					<input
+						type="text"
+						value={rule.name}
+						onChange={(e) => onChange({ name: e.target.value })}
+						placeholder="e.g. Color Match Required"
+						className="form-input"
+					/>
+				</div>
+				<div className="form-field" style={{ minWidth: 140 }}>
+					<label className="form-label">Type</label>
+					<select
+						value={rule.rule_type}
+						onChange={(e) =>
+							onChange({ rule_type: e.target.value })
+						}
+						className="form-select"
+					>
+						{RULE_TYPES.map((t) => (
+							<option key={t} value={t}>
+								{t.replace(/_/g, " ")}
+							</option>
+						))}
+					</select>
+				</div>
+			</div>
+
+			{/* Detail fields */}
+			<div className="form-row mt-3">
+				<div className="form-field">
+					<label className="form-label">Trigger Condition</label>
+					<input
+						type="text"
+						value={rule.trigger_condition}
+						onChange={(e) =>
+							onChange({ trigger_condition: e.target.value })
+						}
+						placeholder="When does this rule activate?"
+						className="form-input"
+					/>
+				</div>
+				<div className="form-field">
+					<label className="form-label">Validation Logic</label>
+					<input
+						type="text"
+						value={rule.validation_logic}
+						onChange={(e) =>
+							onChange({ validation_logic: e.target.value })
+						}
+						placeholder="What must be checked?"
+						className="form-input"
+					/>
+				</div>
+			</div>
+
+			<div className="form-row mt-3">
+				<div className="form-field">
+					<label className="form-label">Resulting Effect</label>
+					<input
+						type="text"
+						value={rule.resulting_effect}
+						onChange={(e) =>
+							onChange({ resulting_effect: e.target.value })
+						}
+						placeholder="What happens when triggered?"
+						className="form-input"
+					/>
+				</div>
+				<div className="form-field">
+					<label className="form-label">Conflict Resolution</label>
+					<input
+						type="text"
+						value={rule.conflict_resolution}
+						onChange={(e) =>
+							onChange({ conflict_resolution: e.target.value })
+						}
+						placeholder="How are conflicts resolved?"
+						className="form-input"
+					/>
+				</div>
+			</div>
+
+			{/* Priority + Override */}
+			<div className="mt-3 flex flex-wrap items-end gap-4">
+				<div className="form-field">
+					<label className="form-label">Priority</label>
+					<div className="stepper-controls">
+						<button
+							type="button"
+							onClick={() =>
+								onChange({
+									priority_level: Math.max(
+										0,
+										rule.priority_level - 1,
+									),
+								})
+							}
+							className="stepper-btn"
+							style={{ width: 28, height: 28 }}
+						>
+							<Minus className="h-3 w-3" />
+						</button>
+						<span
+							className="stepper-value"
+							style={{ minWidth: 36, height: 28, fontSize: 13 }}
+						>
+							{rule.priority_level}
+						</span>
+						<button
+							type="button"
+							onClick={() =>
+								onChange({
+									priority_level: rule.priority_level + 1,
+								})
+							}
+							className="stepper-btn"
+							style={{ width: 28, height: 28 }}
+						>
+							<Plus className="h-3 w-3" />
+						</button>
+					</div>
+				</div>
+				<label className="flex cursor-pointer items-center gap-2 pb-1">
+					<input
+						type="checkbox"
+						checked={rule.override_capability}
+						onChange={(e) =>
+							onChange({ override_capability: e.target.checked })
+						}
+						className="h-4 w-4 rounded border-[var(--color-border)] bg-[var(--color-bg-deep)] accent-[var(--color-gold)]"
+					/>
+					<span className="font-body text-sm text-[var(--color-cream-dim)]">
+						Can override other rules
+					</span>
+				</label>
+			</div>
+		</motion.div>
+	);
+}
+
+export default function RuleBlueprintEditor({
+	rules,
+	onChange,
+}: RuleBlueprintEditorProps) {
 	function updateRule(i: number, patch: Partial<RuleBlueprint>) {
 		const next = [...rules];
 		next[i] = { ...next[i]!, ...patch };
@@ -44,79 +215,54 @@ export default function RuleBlueprintEditor({ rules, onChange }: RuleBlueprintEd
 	}
 
 	return (
-		<section className="rounded-2xl border border-slate-700 bg-slate-800 p-6">
-			<button type="button" onClick={() => setCollapsed(!collapsed)} className="flex w-full items-center justify-between">
-				<h3 className="font-bold text-xl text-indigo-300">
-					Global Rules{" "}
-					<span className="text-sm font-normal text-slate-500">({rules.length} rules)</span>
-				</h3>
-				{collapsed ? <ChevronDown className="h-5 w-5 text-slate-500" /> : <ChevronUp className="h-5 w-5 text-slate-500" />}
-			</button>
-
-			{!collapsed && (
-				<>
-					<div className="mt-4 space-y-3">
-						{rules.map((rule, i) => (
-							<div key={`rule-${i}`} className="group relative rounded-xl border border-slate-600 bg-slate-900/50 p-4 transition-all hover:border-slate-500">
-								<button type="button" onClick={() => onChange(rules.filter((_, j) => j !== i))} className="absolute top-3 right-3 rounded p-1 text-slate-600 opacity-0 transition-all hover:bg-red-500/20 hover:text-red-400 group-hover:opacity-100">
-									<Trash2 className="h-4 w-4" />
-								</button>
-
-								{/* Name + Type */}
-								<div className="flex items-center gap-3 pr-8">
-									<input type="text" value={rule.name} onChange={(e) => updateRule(i, { name: e.target.value })} placeholder="Rule name..." className="flex-1 rounded-lg border border-transparent bg-transparent px-2 py-1 font-semibold text-white outline-none hover:border-slate-600 focus:border-indigo-500 focus:bg-slate-900" />
-									<select value={rule.rule_type} onChange={(e) => updateRule(i, { rule_type: e.target.value })} className="rounded border border-slate-600 bg-slate-900 px-2 py-1 text-xs text-slate-400 outline-none">
-										{RULE_TYPES.map((t) => (
-											<option key={t} value={t}>{t.replace(/_/g, " ")}</option>
-										))}
-									</select>
-								</div>
-
-								{/* Fields */}
-								<div className="mt-2 space-y-1">
-									<div className="flex items-center gap-2">
-										<span className="min-w-20 text-xs text-slate-500">Trigger:</span>
-										<EditableText value={rule.trigger_condition} onChange={(v) => updateRule(i, { trigger_condition: v })} className="text-xs text-slate-300" placeholder="When..." />
-									</div>
-									<div className="flex items-center gap-2">
-										<span className="min-w-20 text-xs text-slate-500">Validation:</span>
-										<EditableText value={rule.validation_logic} onChange={(v) => updateRule(i, { validation_logic: v })} className="text-xs text-slate-300" placeholder="Check..." />
-									</div>
-									<div className="flex items-center gap-2">
-										<span className="min-w-20 text-xs text-slate-500">Effect:</span>
-										<EditableText value={rule.resulting_effect} onChange={(v) => updateRule(i, { resulting_effect: v })} className="text-xs text-slate-300" placeholder="Then..." />
-									</div>
-									<div className="flex items-center gap-2">
-										<span className="min-w-20 text-xs text-slate-500">Conflict:</span>
-										<EditableText value={rule.conflict_resolution} onChange={(v) => updateRule(i, { conflict_resolution: v })} className="text-xs text-slate-300" placeholder="Resolution..." />
-									</div>
-									<div className="flex items-center gap-4">
-										<div className="flex items-center gap-2">
-											<span className="text-xs text-slate-500">Priority:</span>
-											<div className="flex items-center">
-												<button type="button" onClick={() => updateRule(i, { priority_level: Math.max(0, rule.priority_level - 1) })} className="flex h-6 w-6 items-center justify-center rounded-l border border-slate-600 bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white">
-													<Minus className="h-3 w-3" />
-												</button>
-												<span className="flex h-6 min-w-8 items-center justify-center border-y border-slate-600 bg-slate-900 px-1 text-xs text-white tabular-nums">{rule.priority_level}</span>
-												<button type="button" onClick={() => updateRule(i, { priority_level: rule.priority_level + 1 })} className="flex h-6 w-6 items-center justify-center rounded-r border border-slate-600 bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white">
-													<Plus className="h-3 w-3" />
-												</button>
-											</div>
-										</div>
-										<label className="flex cursor-pointer items-center gap-1.5">
-											<input type="checkbox" checked={rule.override_capability} onChange={(e) => updateRule(i, { override_capability: e.target.checked })} className="h-3.5 w-3.5 rounded border-slate-600 bg-slate-900 accent-indigo-500" />
-											<span className="text-xs text-slate-400">Can override</span>
-										</label>
-									</div>
-								</div>
-							</div>
-						))}
-					</div>
-					<button type="button" onClick={() => onChange([...rules, emptyRule()])} className="mt-3 flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-indigo-400 hover:bg-indigo-500/10 hover:text-indigo-300">
-						<Plus className="h-4 w-4" /> Add rule
+		<section className="section-panel">
+			<div className="section-panel-inner">
+				{/* Header */}
+				<div className="flex flex-wrap items-center justify-between gap-3">
+					<h3
+						className="sub-section-title"
+						style={{ marginBottom: 0 }}
+					>
+						<BookOpen className="h-4 w-4" />
+						Global Rules
+						<span className="ml-1 font-body text-sm font-normal text-[var(--color-stone)]">
+							({rules.length} rules)
+						</span>
+					</h3>
+					<button
+						type="button"
+						onClick={() => onChange([...rules, emptyRule()])}
+						className="btn-press flex items-center gap-1.5 rounded-lg bg-[var(--color-gold-muted)] px-3 py-2 font-display text-xs font-medium tracking-wider text-[var(--color-gold)] transition-all hover:bg-[var(--color-gold)] hover:text-[var(--color-bg-deep)]"
+					>
+						<Plus className="h-3.5 w-3.5" /> ADD RULE
 					</button>
-				</>
-			)}
+				</div>
+
+				{/* Rule List */}
+				<div className="mt-4 space-y-3">
+					<AnimatePresence>
+						{rules.map((rule, i) => (
+							<RuleCard
+								key={`rule-${i}`}
+								rule={rule}
+								index={i}
+								onChange={(patch) => updateRule(i, patch)}
+								onDelete={() =>
+									onChange(rules.filter((_, j) => j !== i))
+								}
+							/>
+						))}
+					</AnimatePresence>
+				</div>
+
+				{/* Empty state */}
+				{rules.length === 0 && (
+					<div className="empty-state">
+						<BookOpen />
+						<p>No rules yet. Add your first global rule!</p>
+					</div>
+				)}
+			</div>
 		</section>
 	);
 }
