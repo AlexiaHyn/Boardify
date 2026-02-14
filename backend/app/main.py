@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import health
+from app.routers import games, health
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -10,7 +10,7 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
-# CORS middleware – allow the Next.js frontend to call the API
+# CORS middleware — allow the Next.js frontend to call the API
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
@@ -21,3 +21,4 @@ app.add_middleware(
 
 # Routers
 app.include_router(health.router, prefix=settings.API_V1_PREFIX)
+app.include_router(games.router, prefix=f"{settings.API_V1_PREFIX}/games")
