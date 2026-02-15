@@ -4,7 +4,7 @@
   "description": "A highly strategic kitty-powered version of Russian Roulette. Draw cards, play action cards, and avoid the Exploding Kittens!",
   "version": "1.0.0",
   "themeColor": "#FF6B35",
-  "backgroundEmoji": "\ud83d\udc31",
+  "backgroundEmoji": "🐱",
   "rules": {
     "minPlayers": 2,
     "maxPlayers": 5,
@@ -52,7 +52,7 @@
         "id": "defuse_insert",
         "name": "Bomb Reinsertion",
         "trigger": "on_defuse",
-        "description": "After defusing, you may insert the Exploding Kitten anywhere in the deck \u2014 even the top!",
+        "description": "After defusing, you may insert the Exploding Kitten anywhere in the deck — even the top!",
         "metadata": {}
       },
       {
@@ -91,7 +91,7 @@
       "name": "Defuse",
       "type": "defense",
       "subtype": "defuse",
-      "emoji": "\ud83d\udd27",
+      "emoji": "🔧",
       "description": "If you draw an Exploding Kitten, you can play this card instead of dying. Then, put the Exploding Kitten back in the deck wherever you'd like.",
       "effects": [
         {
@@ -107,14 +107,15 @@
       "metadata": {
         "autoplay": true,
         "guaranteedInStartHand": true
-      }
+      },
+      "imageUrl": "/static/cards/exploding_kittens/defuse.jpg"
     },
     {
       "id": "exploding",
       "name": "Exploding Kitten",
       "type": "special",
       "subtype": "exploding",
-      "emoji": "\ud83d\udca3",
+      "emoji": "💣",
       "description": "BOOM! Unless you have a Defuse card, you're out of the game. These cannot be Noped.",
       "effects": [
         {
@@ -138,14 +139,15 @@
         "notInStartDeck": true,
         "notInStartHand": true,
         "injectCount": "players_minus_one"
-      }
+      },
+      "imageUrl": "/static/cards/exploding_kittens/exploding_kitten.jpg"
     },
     {
       "id": "attack",
       "name": "Attack",
       "type": "action",
       "subtype": "attack",
-      "emoji": "\u2694\ufe0f",
+      "emoji": "⚔️",
       "description": "End your turn(s) without drawing any cards. Force the next player to take 2 turns in a row.",
       "effects": [
         {
@@ -156,14 +158,15 @@
       "isPlayable": true,
       "isReaction": false,
       "count": 4,
-      "metadata": {}
+      "metadata": {},
+      "imageUrl": "/static/cards/exploding_kittens/attack.jpg"
     },
     {
       "id": "skip",
       "name": "Skip",
       "type": "action",
       "subtype": "skip",
-      "emoji": "\u23ed\ufe0f",
+      "emoji": "⏭️",
       "description": "End your turn without drawing a card. If you're under attack, this only cancels one of your turns.",
       "effects": [
         {
@@ -174,14 +177,15 @@
       "isPlayable": true,
       "isReaction": false,
       "count": 4,
-      "metadata": {}
+      "metadata": {},
+      "imageUrl": "/static/cards/exploding_kittens/skip.jpg"
     },
     {
       "id": "nope",
       "name": "Nope",
       "type": "reaction",
       "subtype": "nope",
-      "emoji": "\ud83d\udeab",
+      "emoji": "🚫",
       "description": "Stop any action except an Exploding Kitten or a Defuse card. Can also Nope a Nope!",
       "effects": [
         {
@@ -193,14 +197,15 @@
       "isPlayable": true,
       "isReaction": true,
       "count": 5,
-      "metadata": {}
+      "metadata": {},
+      "imageUrl": "/static/cards/exploding_kittens/nope.jpg"
     },
     {
       "id": "see_future",
       "name": "See the Future",
       "type": "action",
       "subtype": "see_future",
-      "emoji": "\ud83d\udd2e",
+      "emoji": "🔮",
       "description": "Peek at the top 3 cards of the draw pile. Don't show them to anyone else!",
       "effects": [
         {
@@ -213,14 +218,15 @@
       "isPlayable": true,
       "isReaction": false,
       "count": 5,
-      "metadata": {}
+      "metadata": {},
+      "imageUrl": "/static/cards/exploding_kittens/see_the_future.jpg"
     },
     {
       "id": "shuffle",
       "name": "Shuffle",
       "type": "action",
       "subtype": "shuffle",
-      "emoji": "\ud83d\udd00",
+      "emoji": "🔀",
       "description": "Shuffle the draw pile without looking at any of the cards.",
       "effects": [
         {
@@ -232,14 +238,15 @@
       "isPlayable": true,
       "isReaction": false,
       "count": 4,
-      "metadata": {}
+      "metadata": {},
+      "imageUrl": "/static/cards/exploding_kittens/shuffle.jpg"
     },
     {
       "id": "favor",
       "name": "Favor",
       "type": "action",
       "subtype": "favor",
-      "emoji": "\ud83d\ude4f",
+      "emoji": "🙏",
       "description": "Force any other player to give you a card of their choice from their hand.",
       "effects": [
         {
@@ -254,14 +261,15 @@
       "count": 4,
       "metadata": {
         "requiresTarget": true
-      }
+      },
+      "imageUrl": "/static/cards/exploding_kittens/favor.jpg"
     },
     {
       "id": "taco",
       "name": "Taco Cat",
       "type": "combo",
       "subtype": "taco",
-      "emoji": "\ud83c\udf2e",
+      "emoji": "🌮",
       "description": "Play this card with any other Taco Cat to steal a random card from any player.",
       "effects": [
         {
@@ -276,14 +284,15 @@
       "count": 4,
       "metadata": {
         "comboGroup": "taco"
-      }
+      },
+      "imageUrl": "/static/cards/exploding_kittens/tacocat.jpg"
     },
     {
       "id": "rainbow",
       "name": "Rainbow Ralphing Cat",
       "type": "combo",
       "subtype": "rainbow",
-      "emoji": "\ud83c\udf08",
+      "emoji": "🌈",
       "description": "Play this card with another Rainbow Cat to steal a random card from any player.",
       "effects": [
         {
@@ -298,14 +307,15 @@
       "count": 4,
       "metadata": {
         "comboGroup": "rainbow"
-      }
+      },
+      "imageUrl": "/static/cards/exploding_kittens/rainbow_cat.jpg"
     },
     {
       "id": "beard",
       "name": "Beard Cat",
       "type": "combo",
       "subtype": "beard",
-      "emoji": "\ud83d\ude3a",
+      "emoji": "😺",
       "description": "Play this card with another Beard Cat to steal a random card from any player.",
       "effects": [
         {
@@ -320,14 +330,15 @@
       "count": 4,
       "metadata": {
         "comboGroup": "beard"
-      }
+      },
+      "imageUrl": "/static/cards/exploding_kittens/beard_cat.jpg"
     },
     {
       "id": "potato",
       "name": "Potato Cat",
       "type": "combo",
       "subtype": "potato",
-      "emoji": "\ud83e\udd54",
+      "emoji": "🥔",
       "description": "Play this card with another Potato Cat to steal a random card from any player.",
       "effects": [
         {
@@ -342,14 +353,15 @@
       "count": 4,
       "metadata": {
         "comboGroup": "potato"
-      }
+      },
+      "imageUrl": "/static/cards/exploding_kittens/potato_cat.jpg"
     },
     {
       "id": "cattermelon",
       "name": "Cattermelon",
       "type": "combo",
       "subtype": "cattermelon",
-      "emoji": "\ud83c\udf49",
+      "emoji": "🍉",
       "description": "Play this card with another Cattermelon to steal a random card from any player.",
       "effects": [
         {
@@ -364,20 +376,21 @@
       "count": 4,
       "metadata": {
         "comboGroup": "cattermelon"
-      }
+      },
+      "imageUrl": "/static/cards/exploding_kittens/cattermelon.jpg"
     }
   ],
   "ui": {
     "tableBackground": "#1a472a",
-    "cardBack": "\ud83c\udca0",
+    "cardBack": "🂠",
     "deckLabel": "Draw Pile",
     "discardLabel": "Discard Pile",
     "turnPrompt": "It's your turn! Play a card or draw.",
     "waitPrompt": "Waiting for {playerName}...",
-    "winMessage": "\ud83c\udf89 {playerName} survived! All kittens have exploded!",
-    "eliminatedMessage": "\ud83d\udca5 {playerName} exploded!",
+    "winMessage": "🎉 {playerName} survived! All kittens have exploded!",
+    "eliminatedMessage": "💥 {playerName} exploded!",
     "actionLabels": {
-      "draw_card": "Draw Card \ud83c\udccf",
+      "draw_card": "Draw Card 🃏",
       "play_card": "Play",
       "select_target": "Choose Target",
       "insert_exploding": "Place Bomb"

@@ -3,6 +3,7 @@ Modal app for AI-powered card game generation.
 
 Runs Perplexity Sonar research and Claude JSON generation on Modal's
 infrastructure, then validates generated games in a Modal Sandbox.
+Also runs Flux image generation for card art on H100 GPUs.
 
 Setup
 -----
@@ -30,6 +31,35 @@ except (IndexError, OSError):
 image = (
     modal.Image.debian_slim(python_version="3.11")
     .pip_install("anthropic", "httpx", "pydantic>=2.0.0")
+)
+
+# ── Flux image generation image ──────────────────────────────────────────────
+# Separate heavy image for GPU-accelerated card art generation using Flux.
+
+_diffusers_commit = "81cf3b2f155f1de322079af28f625349ee21ec6b"
+
+flux_image = (
+    modal.Image.from_registry(
+        "nvidia/cuda:12.4.0-devel-ubuntu22.04", add_python="3.11"
+    )
+    .entrypoint([])
+    .apt_install(
+        "git", "libglib2.0-0", "libsm6", "libxrender1",
+        "libxext6", "ffmpeg", "libgl1",
+    )
+    .pip_install(
+        "invisible_watermark==0.2.0",
+        "transformers==4.48.0",
+        "tokenizers>=0.21.0",
+        "huggingface-hub==0.36.0",
+        "accelerate==0.33.0",
+        "safetensors==0.4.4",
+        "sentencepiece==0.2.0",
+        "torch==2.5.0",
+        f"git+https://github.com/huggingface/diffusers.git@{_diffusers_commit}",
+        "numpy<2",
+    )
+    .env({"HF_XET_HIGH_PERFORMANCE": "1", "HF_HUB_CACHE": "/cache"})
 )
 
 # ── Constants ────────────────────────────────────────────────────────────────
@@ -893,3 +923,117 @@ def validate_in_sandbox(game_json_str: str) -> dict:
             errors.append(f"Simulation failed: {e}")
 
     return {"valid": len(errors) == 0, "errors": errors, "warnings": warnings}
+
+
+# ── Step 5: Flux card image generation ────────────────────────────────────────
+
+MINUTES = 60  # seconds
+
+@app.cls(
+    image=flux_image,
+    gpu="H100",
+    scaledown_window=5 * MINUTES,       # keep warm 5 min for batch reuse
+    timeout=10 * MINUTES,
+    volumes={
+        "/cache": modal.Volume.from_name("hf-hub-cache", create_if_missing=True),
+    },
+    secrets=[modal.Secret.from_dotenv(path=str(_backend_root / ".env"))],
+)
+class FluxModel:
+    """Flux.1-schnell on H100 for fast card art generation."""
+
+    @modal.enter()
+    def load_model(self):
+        import torch
+        from diffusers import FluxPipeline
+
+        pipe = FluxPipeline.from_pretrained(
+            "black-forest-labs/FLUX.1-schnell", torch_dtype=torch.bfloat16
+        ).to("cuda")
+
+        # Basic optimizations (no torch.compile — faster cold start)
+        pipe.transformer.fuse_qkv_projections()
+        pipe.vae.fuse_qkv_projections()
+        pipe.transformer.to(memory_format=torch.channels_last)
+        pipe.vae.to(memory_format=torch.channels_last)
+
+        self.pipe = pipe
+
+    @modal.method()
+    def generate_image(self, prompt: str) -> bytes:
+        """Generate a single card image (512x768, 2:3 ratio matching card UI)."""
+        from io import BytesIO
+
+        out = self.pipe(
+            prompt,
+            width=512,
+            height=768,
+            output_type="pil",
+            num_inference_steps=4,
+        ).images[0]
+
+        buf = BytesIO()
+        out.save(buf, format="JPEG", quality=85)
+        return buf.getvalue()
+
+
+@app.function(image=image, timeout=600)
+def generate_card_images(
+    game_name: str,
+    card_definitions: list,
+    theme_color: str = "#4F46E5",
+) -> dict:
+    """
+    Batch-generate card art for all unique card definitions in a game.
+
+    Uses Flux.1-schnell on H100 via .map() for parallel generation.
+    Returns dict mapping card_def_id -> JPEG bytes.
+    """
+    # Strict shared style — every card in a game looks like it belongs to the
+    # same deck.  We intentionally keep per-card variation minimal: only the
+    # single symbolic subject changes; composition, palette, and rendering
+    # style are locked.
+    style = (
+        "dark solid color background with a small simple symbol in the center, "
+        f"card game art for '{game_name}', "
+        "flat vector style, simple geometric shapes, "
+        "one accent color, the symbol is small and non-dominant in the CENTRE, "
+        "mostly empty dark space with a subtle centered motif, "
+        "clean and minimal, no busy details, no scenery, "
+        "no text, no letters, no words, no numbers, no writing, "
+        "uniform lighting, same art style for every card"
+    )
+
+    # Map card type to a single accent colour hint so cards of the same type
+    # share a palette, further reducing inter-card variance.
+    _TYPE_ACCENT = {
+        "action":   "teal accent",
+        "defense":  "green accent",
+        "reaction": "red accent",
+        "special":  "amber accent",
+        "combo":    "pink accent",
+        "wild":     "rainbow accent",
+        "number":   "blue accent",
+    }
+
+    prompts = []
+    card_ids = []
+
+    for card_def in card_definitions:
+        accent = _TYPE_ACCENT.get(card_def.get("type", ""), "neutral accent")
+        # Use only the card name as the subject — skip the long description
+        # to keep generations tight and consistent.
+        card_prompt = (
+            f"{style}, {accent}, "
+            f"small subtle symbol of: {card_def['name']}"
+        )
+        prompts.append(card_prompt)
+        card_ids.append(card_def["id"])
+
+    # Batch-generate using FluxModel.map() — processes in parallel on H100s
+    model = FluxModel()
+    results = {}
+    for card_id, img_bytes in zip(card_ids, model.generate_image.map(prompts)):
+        results[card_id] = img_bytes
+
+    return results

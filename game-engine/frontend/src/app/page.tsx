@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { generateGame } from "@/lib/api";
+import { generateGame, type GenerateProgressEvent } from "@/lib/api";
 import { addGame } from "@/lib/games";
 
 /* ─── Example prompts for typing animation ─────────────────────────── */
@@ -222,10 +222,15 @@ export default function HomePage() {
 			return;
 		}
 		setGenerating(true);
+		setGenMessage("Starting generation…");
 		setError("");
-		setGenMessage("Designing your game blueprint…");
 		try {
-			const res = await generateGame(prompt.trim());
+			const res = await generateGame(
+				prompt.trim(),
+				(evt: GenerateProgressEvent) => {
+					setGenMessage(evt.message);
+				},
+			);
 			if (res.success) {
 				setGenMessage(`"${res.game_name}" is ready to play!`);
 				// Register the new game in the frontend catalogue
@@ -406,30 +411,36 @@ export default function HomePage() {
 					)}
 
 					{/* Suggestion chips */}
-					<div className={`mt-5 flex flex-wrap items-center justify-center gap-2 animate-fade-in stagger-4 transition-all duration-500 ease-out ${hideChrome ? "opacity-0 translate-y-2 pointer-events-none" : "opacity-100 translate-y-0"}`}>
-						<span className="font-body text-xs text-[var(--color-stone-dim)]">
-							Or try:
-						</span>
-						{[
-							"A bluffing game for 4 players",
-							"Uno but with spell cards",
-							"Cooperative survival card game",
-						].map((suggestion) => (
-							<button
-								key={suggestion}
-								type="button"
-								onClick={() => setPrompt(suggestion)}
-								disabled={generating}
-								className="btn-press rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1 font-body text-xs text-[var(--color-stone)] transition-all hover:border-[var(--color-gold-dim)] hover:text-[var(--color-cream)] disabled:opacity-40 disabled:cursor-not-allowed"
-							>
-								{suggestion}
-							</button>
-						))}
-					</div>
+					{!generating && (
+						<div
+							className={`mt-5 flex flex-wrap items-center justify-center gap-2 animate-fade-in stagger-4 transition-all duration-500 ease-out ${hideChrome ? "opacity-0 translate-y-2 pointer-events-none" : "opacity-100 translate-y-0"}`}
+						>
+							<span className="font-body text-xs text-[var(--color-stone-dim)]">
+								Or try:
+							</span>
+							{[
+								"A bluffing game for 4 players",
+								"Uno but with spell cards",
+								"Cooperative survival card game",
+							].map((suggestion) => (
+								<button
+									key={suggestion}
+									type="button"
+									onClick={() => setPrompt(suggestion)}
+									disabled={generating}
+									className="btn-press rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1 font-body text-xs text-[var(--color-stone)] transition-all hover:border-[var(--color-gold-dim)] hover:text-[var(--color-cream)] disabled:opacity-40 disabled:cursor-not-allowed"
+								>
+									{suggestion}
+								</button>
+							))}
+						</div>
+					)}
 				</form>
 
 				{/* Divider + Browse Games CTA */}
-				<div className={`flex flex-col items-center transition-all duration-500 ease-out delay-100 ${hideChrome ? "opacity-0 translate-y-4 pointer-events-none" : "opacity-100 translate-y-0"}`}>
+				<div
+					className={`flex flex-col items-center transition-all duration-500 ease-out delay-100 ${hideChrome ? "opacity-0 translate-y-4 pointer-events-none" : "opacity-100 translate-y-0"}`}
+				>
 					<div className="mt-12 flex w-full max-w-md items-center gap-4 animate-fade-in stagger-6">
 						<div className="h-px flex-1 bg-gradient-to-r from-transparent via-[var(--color-gold-dim)] to-transparent opacity-30" />
 						<span className="font-display text-[10px] tracking-[0.2em] uppercase text-[var(--color-stone-dim)]">
