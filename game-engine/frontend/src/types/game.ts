@@ -113,6 +113,17 @@ export interface PendingAction {
   [key: string]: unknown;
 }
 
+export interface DefaultAction {
+  id: string;
+  label: string;
+  icon?: string;
+  description?: string;
+  actionType: string;
+  color?: string;
+  targetPlayerId?: string;
+  targetPlayerName?: string;
+}
+
 export interface GameState {
   gameId: string;
   roomCode: string;
@@ -121,6 +132,7 @@ export interface GameState {
   phase: 'lobby' | 'playing' | 'awaiting_response' | 'ended';
   players: Player[];
   zones: Zone[];
+  availableActions?: DefaultAction[];
   currentTurnPlayerId: string;
   turnNumber: number;
   rules: GameRules;
