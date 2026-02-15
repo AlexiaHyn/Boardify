@@ -1,0 +1,453 @@
+{
+  "id": "go_fish",
+  "name": "Go Fish",
+  "description": "Classic matching card game where players collect sets of four cards of the same rank by asking opponents for cards.",
+  "version": "1.0.0",
+  "themeColor": "#0ea5e9",
+  "backgroundEmoji": "\ud83d\udc20",
+  "rules": {
+    "minPlayers": 2,
+    "maxPlayers": 6,
+    "handSize": 7,
+    "turnStructure": {
+      "phases": [
+        {
+          "id": "ask",
+          "name": "Ask for Cards",
+          "description": "Ask another player for cards of a specific rank you have in your hand.",
+          "isOptional": false
+        }
+      ],
+      "canPassTurn": false,
+      "mustPlayCard": false,
+      "drawCount": 1
+    },
+    "winCondition": {
+      "type": "most_points",
+      "description": "Player with the most books (sets of four matching rank cards) wins when all books are collected.",
+      "metadata": {
+        "targetScore": 13
+      }
+    },
+    "specialRules": [
+      {
+        "id": "book_collection",
+        "name": "Book Collection",
+        "trigger": "on_play",
+        "description": "When you collect all four cards of the same rank, immediately place them face up as a book and take another turn.",
+        "metadata": {}
+      },
+      {
+        "id": "must_have_rank",
+        "name": "Must Have Rank to Ask",
+        "trigger": "on_play",
+        "description": "You can only ask for cards of ranks you already have at least one of in your hand.",
+        "metadata": {}
+      },
+      {
+        "id": "go_fish_draw",
+        "name": "Go Fish Draw",
+        "trigger": "on_draw",
+        "description": "When you draw the card you asked for, show it and take another turn.",
+        "metadata": {}
+      }
+    ]
+  },
+  "config": {
+    "matchColor": false,
+    "matchNumber": true,
+    "matchType": false,
+    "wildAlwaysPlayable": false,
+    "stackableDraw": false,
+    "reverseEqualsSkipTwoPlayers": false,
+    "startWithDiscard": false,
+    "excludeFromStartDiscard": [],
+    "drawUntilPlayable": false,
+    "colors": [],
+    "zones": [
+      {
+        "id": "stock",
+        "name": "Stock",
+        "type": "deck",
+        "isPublic": false
+      },
+      {
+        "id": "books",
+        "name": "Books",
+        "type": "books",
+        "isPublic": true
+      }
+    ]
+  },
+  "cards": [
+    {
+      "id": "ace",
+      "name": "Ace",
+      "type": "number",
+      "subtype": "ace",
+      "emoji": "\ud83c\udca1",
+      "description": "Ace rank card for collecting sets of four.",
+      "effects": [
+        {
+          "type": "number",
+          "value": 1,
+          "target": "self",
+          "description": "Standard playing card - collect four to make a book.",
+          "metadata": {
+            "rank": "ace"
+          }
+        }
+      ],
+      "isPlayable": false,
+      "isReaction": false,
+      "count": 4,
+      "metadata": {
+        "rank": "ace",
+        "points": 1
+      }
+    },
+    {
+      "id": "two",
+      "name": "Two",
+      "type": "number",
+      "subtype": "two",
+      "emoji": "\ud83c\udca2",
+      "description": "Two rank card for collecting sets of four.",
+      "effects": [
+        {
+          "type": "number",
+          "value": 2,
+          "target": "self",
+          "description": "Standard playing card - collect four to make a book.",
+          "metadata": {
+            "rank": "two"
+          }
+        }
+      ],
+      "isPlayable": false,
+      "isReaction": false,
+      "count": 4,
+      "metadata": {
+        "rank": "two",
+        "points": 1
+      }
+    },
+    {
+      "id": "three",
+      "name": "Three",
+      "type": "number",
+      "subtype": "three",
+      "emoji": "\ud83c\udca3",
+      "description": "Three rank card for collecting sets of four.",
+      "effects": [
+        {
+          "type": "number",
+          "value": 3,
+          "target": "self",
+          "description": "Standard playing card - collect four to make a book.",
+          "metadata": {
+            "rank": "three"
+          }
+        }
+      ],
+      "isPlayable": false,
+      "isReaction": false,
+      "count": 4,
+      "metadata": {
+        "rank": "three",
+        "points": 1
+      }
+    },
+    {
+      "id": "four",
+      "name": "Four",
+      "type": "number",
+      "subtype": "four",
+      "emoji": "\ud83c\udca4",
+      "description": "Four rank card for collecting sets of four.",
+      "effects": [
+        {
+          "type": "number",
+          "value": 4,
+          "target": "self",
+          "description": "Standard playing card - collect four to make a book.",
+          "metadata": {
+            "rank": "four"
+          }
+        }
+      ],
+      "isPlayable": false,
+      "isReaction": false,
+      "count": 4,
+      "metadata": {
+        "rank": "four",
+        "points": 1
+      }
+    },
+    {
+      "id": "five",
+      "name": "Five",
+      "type": "number",
+      "subtype": "five",
+      "emoji": "\ud83c\udca5",
+      "description": "Five rank card for collecting sets of four.",
+      "effects": [
+        {
+          "type": "number",
+          "value": 5,
+          "target": "self",
+          "description": "Standard playing card - collect four to make a book.",
+          "metadata": {
+            "rank": "five"
+          }
+        }
+      ],
+      "isPlayable": false,
+      "isReaction": false,
+      "count": 4,
+      "metadata": {
+        "rank": "five",
+        "points": 1
+      }
+    },
+    {
+      "id": "six",
+      "name": "Six",
+      "type": "number",
+      "subtype": "six",
+      "emoji": "\ud83c\udca6",
+      "description": "Six rank card for collecting sets of four.",
+      "effects": [
+        {
+          "type": "number",
+          "value": 6,
+          "target": "self",
+          "description": "Standard playing card - collect four to make a book.",
+          "metadata": {
+            "rank": "six"
+          }
+        }
+      ],
+      "isPlayable": false,
+      "isReaction": false,
+      "count": 4,
+      "metadata": {
+        "rank": "six",
+        "points": 1
+      }
+    },
+    {
+      "id": "seven",
+      "name": "Seven",
+      "type": "number",
+      "subtype": "seven",
+      "emoji": "\ud83c\udca7",
+      "description": "Seven rank card for collecting sets of four.",
+      "effects": [
+        {
+          "type": "number",
+          "value": 7,
+          "target": "self",
+          "description": "Standard playing card - collect four to make a book.",
+          "metadata": {
+            "rank": "seven"
+          }
+        }
+      ],
+      "isPlayable": false,
+      "isReaction": false,
+      "count": 4,
+      "metadata": {
+        "rank": "seven",
+        "points": 1
+      }
+    },
+    {
+      "id": "eight",
+      "name": "Eight",
+      "type": "number",
+      "subtype": "eight",
+      "emoji": "\ud83c\udca8",
+      "description": "Eight rank card for collecting sets of four.",
+      "effects": [
+        {
+          "type": "number",
+          "value": 8,
+          "target": "self",
+          "description": "Standard playing card - collect four to make a book.",
+          "metadata": {
+            "rank": "eight"
+          }
+        }
+      ],
+      "isPlayable": false,
+      "isReaction": false,
+      "count": 4,
+      "metadata": {
+        "rank": "eight",
+        "points": 1
+      }
+    },
+    {
+      "id": "nine",
+      "name": "Nine",
+      "type": "number",
+      "subtype": "nine",
+      "emoji": "\ud83c\udca9",
+      "description": "Nine rank card for collecting sets of four.",
+      "effects": [
+        {
+          "type": "number",
+          "value": 9,
+          "target": "self",
+          "description": "Standard playing card - collect four to make a book.",
+          "metadata": {
+            "rank": "nine"
+          }
+        }
+      ],
+      "isPlayable": false,
+      "isReaction": false,
+      "count": 4,
+      "metadata": {
+        "rank": "nine",
+        "points": 1
+      }
+    },
+    {
+      "id": "ten",
+      "name": "Ten",
+      "type": "number",
+      "subtype": "ten",
+      "emoji": "\ud83c\udcaa",
+      "description": "Ten rank card for collecting sets of four.",
+      "effects": [
+        {
+          "type": "number",
+          "value": 10,
+          "target": "self",
+          "description": "Standard playing card - collect four to make a book.",
+          "metadata": {
+            "rank": "ten"
+          }
+        }
+      ],
+      "isPlayable": false,
+      "isReaction": false,
+      "count": 4,
+      "metadata": {
+        "rank": "ten",
+        "points": 1
+      }
+    },
+    {
+      "id": "jack",
+      "name": "Jack",
+      "type": "number",
+      "subtype": "jack",
+      "emoji": "\ud83c\udcab",
+      "description": "Jack rank card for collecting sets of four.",
+      "effects": [
+        {
+          "type": "number",
+          "value": 11,
+          "target": "self",
+          "description": "Standard playing card - collect four to make a book.",
+          "metadata": {
+            "rank": "jack"
+          }
+        }
+      ],
+      "isPlayable": false,
+      "isReaction": false,
+      "count": 4,
+      "metadata": {
+        "rank": "jack",
+        "points": 1
+      }
+    },
+    {
+      "id": "queen",
+      "name": "Queen",
+      "type": "number",
+      "subtype": "queen",
+      "emoji": "\ud83c\udcad",
+      "description": "Queen rank card for collecting sets of four.",
+      "effects": [
+        {
+          "type": "number",
+          "value": 12,
+          "target": "self",
+          "description": "Standard playing card - collect four to make a book.",
+          "metadata": {
+            "rank": "queen"
+          }
+        }
+      ],
+      "isPlayable": false,
+      "isReaction": false,
+      "count": 4,
+      "metadata": {
+        "rank": "queen",
+        "points": 1
+      }
+    },
+    {
+      "id": "king",
+      "name": "King",
+      "type": "number",
+      "subtype": "king",
+      "emoji": "\ud83c\udcae",
+      "description": "King rank card for collecting sets of four.",
+      "effects": [
+        {
+          "type": "number",
+          "value": 13,
+          "target": "self",
+          "description": "Standard playing card - collect four to make a book.",
+          "metadata": {
+            "rank": "king"
+          }
+        }
+      ],
+      "isPlayable": false,
+      "isReaction": false,
+      "count": 4,
+      "metadata": {
+        "rank": "king",
+        "points": 1
+      }
+    }
+  ],
+  "ui": {
+    "tableBackground": "#0ea5e9",
+    "cardBack": "\ud83c\udca0",
+    "deckLabel": "Stock",
+    "discardLabel": "Books",
+    "turnPrompt": "Ask another player for cards of a rank you have!",
+    "waitPrompt": "Waiting for {playerName} to ask for cards...",
+    "winMessage": "\ud83c\udfc6 {playerName} wins with the most books!",
+    "eliminatedMessage": "\ud83d\udc20 {playerName} is out of cards!",
+    "actionLabels": {
+      "draw_card": "Go Fish! \ud83d\udc20",
+      "play_card": "Ask",
+      "call_uno": "",
+      "choose_color": "",
+      "challenge": "",
+      "insert_card": "",
+      "select_target": "Choose Player"
+    },
+    "specialPrompts": {
+      "choose_color": "",
+      "stack_draw": "",
+      "challenge_draw4": "",
+      "uno_call": "",
+      "uno_penalty": "",
+      "insert_card": "",
+      "favor_target_select": "Choose a player to ask for cards",
+      "steal_target_select": "",
+      "combo_target_select": ""
+    },
+    "colorPicker": {}
+  }
+}

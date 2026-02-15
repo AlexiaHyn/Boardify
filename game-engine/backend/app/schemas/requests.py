@@ -53,3 +53,19 @@ class ActionResponse(BaseModel):
 
 class AvailableGamesResponse(BaseModel):
     games: List[Dict[str, str]]   # [{"id": "exploding_kittens", "name": "Exploding Kittens"}]
+
+
+# ── Game generation (AI) ─────────────────────────────────────────────────────
+
+class GenerateGameRequest(BaseModel):
+    game_name: str                # e.g. "Crazy Eights", "Go Fish", "Phase 10"
+
+
+class GenerateGameResponse(BaseModel):
+    success: bool
+    game_id: str = ""
+    game_name: str = ""
+    description: str = ""
+    message: str = ""
+    errors: List[str] = []
+    warnings: List[str] = []
