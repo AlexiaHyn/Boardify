@@ -18,19 +18,59 @@ Usage:
 """
 import importlib
 import os
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 from app.services.engines.game_plugin_base import GamePluginBase
 
 
-# Map game IDs to their plugin module names
-PLUGIN_MODULES = {
-    "uno": "app.services.engines.uno",
-    "exploding_kittens": "app.services.engines.exploding_kittens_plugin",
-    # Add more games here:
-    # "poker": "app.services.engines.poker",
-    # "uno_flip": "app.services.engines.uno_flip",
-}
+def _discover_plugins() -> Dict[str, str]:
+    """
+    Automatically discover game plugins by scanning the games directory.
+
+    For each game JSON file (e.g., uno.json), checks if a corresponding
+    plugin module exists (e.g., app.services.engines.uno).
+
+    Returns:
+        Dictionary mapping game_id -> plugin_module_path
+    """
+    discovered = {}
+
+    # Get path to games directory
+    engines_dir = Path(__file__).parent
+    games_dir = engines_dir.parent.parent / "games"
+
+    if not games_dir.exists():
+        return discovered
+
+    # Scan all JSON files in games directory
+    for json_file in games_dir.glob("*.json"):
+        game_id = json_file.stem  # e.g., "uno" from "uno.json"
+
+        # Check if a corresponding plugin module exists
+        # Try common plugin naming patterns
+        possible_names = [
+            f"app.services.engines.{game_id}",              # e.g., uno.py
+            f"app.services.engines.{game_id}_plugin",       # e.g., uno_plugin.py
+        ]
+
+        for module_name in possible_names:
+            try:
+                # Try to import the module to check if it exists
+                importlib.import_module(module_name)
+                # If import succeeds, register it
+                discovered[game_id] = module_name
+                print(f"✓ Discovered plugin: {game_id} -> {module_name}")
+                break
+            except ImportError:
+                # Module doesn't exist, try next pattern
+                continue
+
+    return discovered
+
+
+# Automatically discover and register plugins
+PLUGIN_MODULES = _discover_plugins()
 
 
 def get_plugin(game_id: str, game_config: Dict[str, Any]) -> Optional[GamePluginBase]:

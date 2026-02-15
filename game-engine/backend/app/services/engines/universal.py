@@ -237,8 +237,11 @@ def _can_play_card(card: Card, state: GameState) -> bool:
             return True
 
     # Type/subtype match
+    # Don't allow generic "number" subtype to match (would allow any number to match any number)
+    # Only allow action cards (skip, reverse, etc.) to match by type
     if cfg.get("matchType", False):
-        if card.subtype == _active_subtype(state):
+        active_sub = _active_subtype(state)
+        if card.subtype == active_sub and active_sub != "number":
             return True
 
     # If no match rules configured → always playable
