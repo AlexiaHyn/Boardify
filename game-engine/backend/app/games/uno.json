@@ -1,10 +1,10 @@
 {
   "id": "uno",
-  "name": "Uno",
-  "description": "The classic card game where you match colors and numbers to empty your hand first!",
+  "name": "UNO",
+  "description": "Be the first player to get rid of all your cards! Match by color or number, and don't forget to shout UNO when you're down to one card!",
   "version": "1.0.0",
-  "themeColor": "#dc2626",
-  "backgroundEmoji": "\ud83c\udccf",
+  "themeColor": "#E8232A",
+  "backgroundEmoji": "🎴",
   "rules": {
     "minPlayers": 2,
     "maxPlayers": 10,
@@ -14,14 +14,8 @@
         {
           "id": "play",
           "name": "Play a Card",
-          "description": "Play one card that matches the color, number, or symbol.",
-          "isOptional": true
-        },
-        {
-          "id": "draw",
-          "name": "Draw a Card",
-          "description": "Draw one card if you cannot play.",
-          "isOptional": true
+          "description": "Play a card that matches the top discard by color, number, or type. If you can't, draw one card.",
+          "isOptional": false
         }
       ],
       "canPassTurn": false,
@@ -29,39 +23,60 @@
       "drawCount": 1
     },
     "winCondition": {
-      "type": "target_score",
-      "description": "First player to reach 500 points wins! Score points when opponents have cards left.",
+      "type": "empty_hand",
+      "description": "First player to play all their cards wins! Remember to call UNO when you have one card left.",
       "metadata": {
-        "targetScore": 500
+        "pointSystem": "winner scores points equal to cards left in other players' hands",
+        "numberCardPoints": "face value",
+        "actionCardPoints": 20,
+        "wildCardPoints": 50
       }
     },
     "specialRules": [
       {
-        "id": "uno_call",
-        "name": "Uno Call",
+        "id": "color_match",
+        "name": "Color Match",
         "trigger": "on_play",
-        "description": "Must call 'Uno' when down to one card or draw 2 penalty cards."
+        "description": "You must play a card that matches the current color, number, or action type — or play a Wild.",
+        "metadata": {}
       },
       {
-        "id": "wild_draw_4_legal",
-        "name": "Wild Draw 4 Legality",
+        "id": "uno_call",
+        "name": "UNO Call",
+        "trigger": "on_one_card",
+        "description": "When you play down to one card, you must call UNO. If you forget and another player catches you before the next turn, you draw 2 penalty cards.",
+        "metadata": {}
+      },
+      {
+        "id": "draw_stack",
+        "name": "Draw Stacking",
+        "trigger": "on_draw",
+        "description": "When a Draw 2 is played, the next player may stack another Draw 2 to pass it along. The player who cannot stack must draw the full accumulated total.",
+        "metadata": {}
+      },
+      {
+        "id": "reverse_two_players",
+        "name": "Reverse = Skip (2 players)",
         "trigger": "on_play",
-        "description": "Can only play Wild Draw 4 if you have no cards matching the current color."
+        "description": "In a 2-player game, a Reverse card acts like a Skip card.",
+        "metadata": {}
+      },
+      {
+        "id": "wild_draw_four_challenge",
+        "name": "Wild Draw 4 Challenge",
+        "trigger": "on_play",
+        "description": "If you suspect a Wild Draw 4 was played illegally (the player had a matching color card), you can challenge it. If correct, the offender draws 4; if wrong, you draw 6.",
+        "metadata": {}
       }
     ]
   },
   "config": {
-    "matchColor": true,
-    "matchNumber": true,
-    "matchType": false,
-    "wildAlwaysPlayable": true,
-    "stackableDraw": false,
-    "reverseEqualsSkipTwoPlayers": true,
-    "startWithDiscard": true,
-    "excludeFromStartDiscard": [
-      "wild_draw_4"
-    ],
-    "drawUntilPlayable": false,
+    "showDeckCount": true,
+    "showDiscardPile": true,
+    "handVisible": false,
+    "allowDrawStacking": true,
+    "allowWildDraw4Challenge": true,
+    "unoCallWindow": 3000,
     "colors": [
       "red",
       "yellow",
@@ -69,24 +84,42 @@
       "blue"
     ],
     "colorEmojis": {
-      "red": "\ud83d\udd34",
-      "yellow": "\ud83d\udfe1",
-      "green": "\ud83d\udfe2",
-      "blue": "\ud83d\udd35",
-      "wild": "\ud83c\udf08"
+      "red": "🔴",
+      "yellow": "🟡",
+      "green": "🟢",
+      "blue": "🔵",
+      "wild": "🌈"
     },
-    "zones": [
+    "matchColor": true,
+    "matchNumber": true,
+    "matchType": true,
+    "wildAlwaysPlayable": true,
+    "stackableDraw": true,
+    "reverseEqualsSkipTwoPlayers": true,
+    "startWithDiscard": true,
+    "excludeFromStartDiscard": [
+      "wild",
+      "wild_draw4"
+    ],
+    "drawUntilPlayable": false,
+    "defaultActions": [
       {
-        "id": "draw_pile",
-        "name": "Draw Pile",
-        "type": "deck",
-        "isPublic": false
+        "id": "call_uno",
+        "label": "UNO!",
+        "icon": "🗣️",
+        "description": "Call UNO when you have 1 card left",
+        "actionType": "call_uno",
+        "showCondition": "self_has_one_card",
+        "color": "yellow"
       },
       {
-        "id": "discard_pile",
-        "name": "Discard Pile",
-        "type": "discard",
-        "isPublic": true
+        "id": "catch_uno",
+        "label": "Catch UNO",
+        "icon": "🚨",
+        "description": "Catch a player who forgot to call UNO",
+        "actionType": "catch_uno",
+        "showCondition": "opponent_has_one_card_no_call",
+        "color": "red"
       }
     ]
   },
@@ -96,14 +129,14 @@
       "name": "Red 0",
       "type": "number",
       "subtype": "number",
-      "emoji": "0\ufe0f\u20e3",
-      "description": "Play on red cards or other 0s.",
+      "emoji": "0️⃣",
+      "description": "Play on any red card or any 0.",
+      "count": 1,
       "effects": [
         {
           "type": "number",
-          "value": 0,
           "target": "self",
-          "description": "Standard number card.",
+          "description": "Play on matching color or number",
           "metadata": {
             "color": "red",
             "number": 0
@@ -112,7 +145,6 @@
       ],
       "isPlayable": true,
       "isReaction": false,
-      "count": 1,
       "metadata": {
         "color": "red",
         "number": 0,
@@ -125,14 +157,14 @@
       "name": "Red 1",
       "type": "number",
       "subtype": "number",
-      "emoji": "1\ufe0f\u20e3",
-      "description": "Play on red cards or other 1s.",
+      "emoji": "1️⃣",
+      "description": "Play on any red card or any 1.",
+      "count": 2,
       "effects": [
         {
           "type": "number",
-          "value": 1,
           "target": "self",
-          "description": "Standard number card.",
+          "description": "Play on matching color or number",
           "metadata": {
             "color": "red",
             "number": 1
@@ -141,7 +173,6 @@
       ],
       "isPlayable": true,
       "isReaction": false,
-      "count": 2,
       "metadata": {
         "color": "red",
         "number": 1,
@@ -154,14 +185,14 @@
       "name": "Red 2",
       "type": "number",
       "subtype": "number",
-      "emoji": "2\ufe0f\u20e3",
-      "description": "Play on red cards or other 2s.",
+      "emoji": "2️⃣",
+      "description": "Play on any red card or any 2.",
+      "count": 2,
       "effects": [
         {
           "type": "number",
-          "value": 2,
           "target": "self",
-          "description": "Standard number card.",
+          "description": "Play on matching color or number",
           "metadata": {
             "color": "red",
             "number": 2
@@ -170,7 +201,6 @@
       ],
       "isPlayable": true,
       "isReaction": false,
-      "count": 2,
       "metadata": {
         "color": "red",
         "number": 2,
@@ -183,14 +213,14 @@
       "name": "Red 3",
       "type": "number",
       "subtype": "number",
-      "emoji": "3\ufe0f\u20e3",
-      "description": "Play on red cards or other 3s.",
+      "emoji": "3️⃣",
+      "description": "Play on any red card or any 3.",
+      "count": 2,
       "effects": [
         {
           "type": "number",
-          "value": 3,
           "target": "self",
-          "description": "Standard number card.",
+          "description": "Play on matching color or number",
           "metadata": {
             "color": "red",
             "number": 3
@@ -199,7 +229,6 @@
       ],
       "isPlayable": true,
       "isReaction": false,
-      "count": 2,
       "metadata": {
         "color": "red",
         "number": 3,
@@ -212,14 +241,14 @@
       "name": "Red 4",
       "type": "number",
       "subtype": "number",
-      "emoji": "4\ufe0f\u20e3",
-      "description": "Play on red cards or other 4s.",
+      "emoji": "4️⃣",
+      "description": "Play on any red card or any 4.",
+      "count": 2,
       "effects": [
         {
           "type": "number",
-          "value": 4,
           "target": "self",
-          "description": "Standard number card.",
+          "description": "Play on matching color or number",
           "metadata": {
             "color": "red",
             "number": 4
@@ -228,7 +257,6 @@
       ],
       "isPlayable": true,
       "isReaction": false,
-      "count": 2,
       "metadata": {
         "color": "red",
         "number": 4,
@@ -241,14 +269,14 @@
       "name": "Red 5",
       "type": "number",
       "subtype": "number",
-      "emoji": "5\ufe0f\u20e3",
-      "description": "Play on red cards or other 5s.",
+      "emoji": "5️⃣",
+      "description": "Play on any red card or any 5.",
+      "count": 2,
       "effects": [
         {
           "type": "number",
-          "value": 5,
           "target": "self",
-          "description": "Standard number card.",
+          "description": "Play on matching color or number",
           "metadata": {
             "color": "red",
             "number": 5
@@ -257,7 +285,6 @@
       ],
       "isPlayable": true,
       "isReaction": false,
-      "count": 2,
       "metadata": {
         "color": "red",
         "number": 5,
@@ -270,14 +297,14 @@
       "name": "Red 6",
       "type": "number",
       "subtype": "number",
-      "emoji": "6\ufe0f\u20e3",
-      "description": "Play on red cards or other 6s.",
+      "emoji": "6️⃣",
+      "description": "Play on any red card or any 6.",
+      "count": 2,
       "effects": [
         {
           "type": "number",
-          "value": 6,
           "target": "self",
-          "description": "Standard number card.",
+          "description": "Play on matching color or number",
           "metadata": {
             "color": "red",
             "number": 6
@@ -286,7 +313,6 @@
       ],
       "isPlayable": true,
       "isReaction": false,
-      "count": 2,
       "metadata": {
         "color": "red",
         "number": 6,
@@ -299,14 +325,14 @@
       "name": "Red 7",
       "type": "number",
       "subtype": "number",
-      "emoji": "7\ufe0f\u20e3",
-      "description": "Play on red cards or other 7s.",
+      "emoji": "7️⃣",
+      "description": "Play on any red card or any 7.",
+      "count": 2,
       "effects": [
         {
           "type": "number",
-          "value": 7,
           "target": "self",
-          "description": "Standard number card.",
+          "description": "Play on matching color or number",
           "metadata": {
             "color": "red",
             "number": 7
@@ -315,7 +341,6 @@
       ],
       "isPlayable": true,
       "isReaction": false,
-      "count": 2,
       "metadata": {
         "color": "red",
         "number": 7,
@@ -328,14 +353,14 @@
       "name": "Red 8",
       "type": "number",
       "subtype": "number",
-      "emoji": "8\ufe0f\u20e3",
-      "description": "Play on red cards or other 8s.",
+      "emoji": "8️⃣",
+      "description": "Play on any red card or any 8.",
+      "count": 2,
       "effects": [
         {
           "type": "number",
-          "value": 8,
           "target": "self",
-          "description": "Standard number card.",
+          "description": "Play on matching color or number",
           "metadata": {
             "color": "red",
             "number": 8
@@ -344,7 +369,6 @@
       ],
       "isPlayable": true,
       "isReaction": false,
-      "count": 2,
       "metadata": {
         "color": "red",
         "number": 8,
@@ -357,14 +381,14 @@
       "name": "Red 9",
       "type": "number",
       "subtype": "number",
-      "emoji": "9\ufe0f\u20e3",
-      "description": "Play on red cards or other 9s.",
+      "emoji": "9️⃣",
+      "description": "Play on any red card or any 9.",
+      "count": 2,
       "effects": [
         {
           "type": "number",
-          "value": 9,
           "target": "self",
-          "description": "Standard number card.",
+          "description": "Play on matching color or number",
           "metadata": {
             "color": "red",
             "number": 9
@@ -373,7 +397,6 @@
       ],
       "isPlayable": true,
       "isReaction": false,
-      "count": 2,
       "metadata": {
         "color": "red",
         "number": 9,
@@ -382,18 +405,98 @@
       "imageUrl": "/static/cards/uno/red_9.jpg"
     },
     {
+      "id": "red_skip",
+      "name": "Red Skip",
+      "type": "action",
+      "subtype": "skip",
+      "emoji": "🚫",
+      "description": "The next player loses their turn.",
+      "count": 2,
+      "effects": [
+        {
+          "type": "skip",
+          "value": 1,
+          "target": "next_player",
+          "description": "Next player loses their turn",
+          "metadata": {
+            "color": "red"
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "metadata": {
+        "color": "red",
+        "points": 20
+      },
+      "imageUrl": "/static/cards/uno/red_skip.jpg"
+    },
+    {
+      "id": "red_reverse",
+      "name": "Red Reverse",
+      "type": "action",
+      "subtype": "reverse",
+      "emoji": "🔄",
+      "description": "Reverse the order of play.",
+      "count": 2,
+      "effects": [
+        {
+          "type": "reverse",
+          "target": "all",
+          "description": "Reverse direction of play",
+          "metadata": {
+            "color": "red"
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "metadata": {
+        "color": "red",
+        "points": 20
+      },
+      "imageUrl": "/static/cards/uno/red_reverse.jpg"
+    },
+    {
+      "id": "red_draw2",
+      "name": "Red Draw 2",
+      "type": "action",
+      "subtype": "draw2",
+      "emoji": "➕",
+      "description": "Next player draws 2 cards and loses their turn (unless they stack another Draw 2).",
+      "count": 2,
+      "effects": [
+        {
+          "type": "draw",
+          "value": 2,
+          "target": "next_player",
+          "description": "Force next player to draw 2 and skip",
+          "metadata": {
+            "color": "red"
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "metadata": {
+        "color": "red",
+        "points": 20
+      },
+      "imageUrl": "/static/cards/uno/red_draw_2.jpg"
+    },
+    {
       "id": "yellow_0",
       "name": "Yellow 0",
       "type": "number",
       "subtype": "number",
-      "emoji": "0\ufe0f\u20e3",
-      "description": "Play on yellow cards or other 0s.",
+      "emoji": "0️⃣",
+      "description": "Play on any yellow card or any 0.",
+      "count": 1,
       "effects": [
         {
           "type": "number",
-          "value": 0,
           "target": "self",
-          "description": "Standard number card.",
+          "description": "Play on matching color or number",
           "metadata": {
             "color": "yellow",
             "number": 0
@@ -402,7 +505,6 @@
       ],
       "isPlayable": true,
       "isReaction": false,
-      "count": 1,
       "metadata": {
         "color": "yellow",
         "number": 0,
@@ -415,14 +517,14 @@
       "name": "Yellow 1",
       "type": "number",
       "subtype": "number",
-      "emoji": "1\ufe0f\u20e3",
-      "description": "Play on yellow cards or other 1s.",
+      "emoji": "1️⃣",
+      "description": "Play on any yellow card or any 1.",
+      "count": 2,
       "effects": [
         {
           "type": "number",
-          "value": 1,
           "target": "self",
-          "description": "Standard number card.",
+          "description": "Play on matching color or number",
           "metadata": {
             "color": "yellow",
             "number": 1
@@ -431,7 +533,6 @@
       ],
       "isPlayable": true,
       "isReaction": false,
-      "count": 2,
       "metadata": {
         "color": "yellow",
         "number": 1,
@@ -444,14 +545,14 @@
       "name": "Yellow 2",
       "type": "number",
       "subtype": "number",
-      "emoji": "2\ufe0f\u20e3",
-      "description": "Play on yellow cards or other 2s.",
+      "emoji": "2️⃣",
+      "description": "Play on any yellow card or any 2.",
+      "count": 2,
       "effects": [
         {
           "type": "number",
-          "value": 2,
           "target": "self",
-          "description": "Standard number card.",
+          "description": "Play on matching color or number",
           "metadata": {
             "color": "yellow",
             "number": 2
@@ -460,7 +561,6 @@
       ],
       "isPlayable": true,
       "isReaction": false,
-      "count": 2,
       "metadata": {
         "color": "yellow",
         "number": 2,
@@ -473,14 +573,14 @@
       "name": "Yellow 3",
       "type": "number",
       "subtype": "number",
-      "emoji": "3\ufe0f\u20e3",
-      "description": "Play on yellow cards or other 3s.",
+      "emoji": "3️⃣",
+      "description": "Play on any yellow card or any 3.",
+      "count": 2,
       "effects": [
         {
           "type": "number",
-          "value": 3,
           "target": "self",
-          "description": "Standard number card.",
+          "description": "Play on matching color or number",
           "metadata": {
             "color": "yellow",
             "number": 3
@@ -489,7 +589,6 @@
       ],
       "isPlayable": true,
       "isReaction": false,
-      "count": 2,
       "metadata": {
         "color": "yellow",
         "number": 3,
@@ -502,14 +601,14 @@
       "name": "Yellow 4",
       "type": "number",
       "subtype": "number",
-      "emoji": "4\ufe0f\u20e3",
-      "description": "Play on yellow cards or other 4s.",
+      "emoji": "4️⃣",
+      "description": "Play on any yellow card or any 4.",
+      "count": 2,
       "effects": [
         {
           "type": "number",
-          "value": 4,
           "target": "self",
-          "description": "Standard number card.",
+          "description": "Play on matching color or number",
           "metadata": {
             "color": "yellow",
             "number": 4
@@ -518,7 +617,6 @@
       ],
       "isPlayable": true,
       "isReaction": false,
-      "count": 2,
       "metadata": {
         "color": "yellow",
         "number": 4,
@@ -531,14 +629,14 @@
       "name": "Yellow 5",
       "type": "number",
       "subtype": "number",
-      "emoji": "5\ufe0f\u20e3",
-      "description": "Play on yellow cards or other 5s.",
+      "emoji": "5️⃣",
+      "description": "Play on any yellow card or any 5.",
+      "count": 2,
       "effects": [
         {
           "type": "number",
-          "value": 5,
           "target": "self",
-          "description": "Standard number card.",
+          "description": "Play on matching color or number",
           "metadata": {
             "color": "yellow",
             "number": 5
@@ -547,7 +645,6 @@
       ],
       "isPlayable": true,
       "isReaction": false,
-      "count": 2,
       "metadata": {
         "color": "yellow",
         "number": 5,
@@ -560,14 +657,14 @@
       "name": "Yellow 6",
       "type": "number",
       "subtype": "number",
-      "emoji": "6\ufe0f\u20e3",
-      "description": "Play on yellow cards or other 6s.",
+      "emoji": "6️⃣",
+      "description": "Play on any yellow card or any 6.",
+      "count": 2,
       "effects": [
         {
           "type": "number",
-          "value": 6,
           "target": "self",
-          "description": "Standard number card.",
+          "description": "Play on matching color or number",
           "metadata": {
             "color": "yellow",
             "number": 6
@@ -576,7 +673,6 @@
       ],
       "isPlayable": true,
       "isReaction": false,
-      "count": 2,
       "metadata": {
         "color": "yellow",
         "number": 6,
@@ -589,14 +685,14 @@
       "name": "Yellow 7",
       "type": "number",
       "subtype": "number",
-      "emoji": "7\ufe0f\u20e3",
-      "description": "Play on yellow cards or other 7s.",
+      "emoji": "7️⃣",
+      "description": "Play on any yellow card or any 7.",
+      "count": 2,
       "effects": [
         {
           "type": "number",
-          "value": 7,
           "target": "self",
-          "description": "Standard number card.",
+          "description": "Play on matching color or number",
           "metadata": {
             "color": "yellow",
             "number": 7
@@ -605,7 +701,6 @@
       ],
       "isPlayable": true,
       "isReaction": false,
-      "count": 2,
       "metadata": {
         "color": "yellow",
         "number": 7,
@@ -618,14 +713,14 @@
       "name": "Yellow 8",
       "type": "number",
       "subtype": "number",
-      "emoji": "8\ufe0f\u20e3",
-      "description": "Play on yellow cards or other 8s.",
+      "emoji": "8️⃣",
+      "description": "Play on any yellow card or any 8.",
+      "count": 2,
       "effects": [
         {
           "type": "number",
-          "value": 8,
           "target": "self",
-          "description": "Standard number card.",
+          "description": "Play on matching color or number",
           "metadata": {
             "color": "yellow",
             "number": 8
@@ -634,7 +729,6 @@
       ],
       "isPlayable": true,
       "isReaction": false,
-      "count": 2,
       "metadata": {
         "color": "yellow",
         "number": 8,
@@ -647,14 +741,14 @@
       "name": "Yellow 9",
       "type": "number",
       "subtype": "number",
-      "emoji": "9\ufe0f\u20e3",
-      "description": "Play on yellow cards or other 9s.",
+      "emoji": "9️⃣",
+      "description": "Play on any yellow card or any 9.",
+      "count": 2,
       "effects": [
         {
           "type": "number",
-          "value": 9,
           "target": "self",
-          "description": "Standard number card.",
+          "description": "Play on matching color or number",
           "metadata": {
             "color": "yellow",
             "number": 9
@@ -663,7 +757,6 @@
       ],
       "isPlayable": true,
       "isReaction": false,
-      "count": 2,
       "metadata": {
         "color": "yellow",
         "number": 9,
@@ -672,18 +765,98 @@
       "imageUrl": "/static/cards/uno/yellow_9.jpg"
     },
     {
+      "id": "yellow_skip",
+      "name": "Yellow Skip",
+      "type": "action",
+      "subtype": "skip",
+      "emoji": "🚫",
+      "description": "The next player loses their turn.",
+      "count": 2,
+      "effects": [
+        {
+          "type": "skip",
+          "value": 1,
+          "target": "next_player",
+          "description": "Next player loses their turn",
+          "metadata": {
+            "color": "yellow"
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "metadata": {
+        "color": "yellow",
+        "points": 20
+      },
+      "imageUrl": "/static/cards/uno/yellow_skip.jpg"
+    },
+    {
+      "id": "yellow_reverse",
+      "name": "Yellow Reverse",
+      "type": "action",
+      "subtype": "reverse",
+      "emoji": "🔄",
+      "description": "Reverse the order of play.",
+      "count": 2,
+      "effects": [
+        {
+          "type": "reverse",
+          "target": "all",
+          "description": "Reverse direction of play",
+          "metadata": {
+            "color": "yellow"
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "metadata": {
+        "color": "yellow",
+        "points": 20
+      },
+      "imageUrl": "/static/cards/uno/yellow_reverse.jpg"
+    },
+    {
+      "id": "yellow_draw2",
+      "name": "Yellow Draw 2",
+      "type": "action",
+      "subtype": "draw2",
+      "emoji": "➕",
+      "description": "Next player draws 2 cards and loses their turn.",
+      "count": 2,
+      "effects": [
+        {
+          "type": "draw",
+          "value": 2,
+          "target": "next_player",
+          "description": "Force next player to draw 2 and skip",
+          "metadata": {
+            "color": "yellow"
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "metadata": {
+        "color": "yellow",
+        "points": 20
+      },
+      "imageUrl": "/static/cards/uno/yellow_draw_2.jpg"
+    },
+    {
       "id": "green_0",
       "name": "Green 0",
       "type": "number",
       "subtype": "number",
-      "emoji": "0\ufe0f\u20e3",
-      "description": "Play on green cards or other 0s.",
+      "emoji": "0️⃣",
+      "description": "Play on any green card or any 0.",
+      "count": 1,
       "effects": [
         {
           "type": "number",
-          "value": 0,
           "target": "self",
-          "description": "Standard number card.",
+          "description": "Play on matching color or number",
           "metadata": {
             "color": "green",
             "number": 0
@@ -692,7 +865,6 @@
       ],
       "isPlayable": true,
       "isReaction": false,
-      "count": 1,
       "metadata": {
         "color": "green",
         "number": 0,
@@ -705,14 +877,14 @@
       "name": "Green 1",
       "type": "number",
       "subtype": "number",
-      "emoji": "1\ufe0f\u20e3",
-      "description": "Play on green cards or other 1s.",
+      "emoji": "1️⃣",
+      "description": "Play on any green card or any 1.",
+      "count": 2,
       "effects": [
         {
           "type": "number",
-          "value": 1,
           "target": "self",
-          "description": "Standard number card.",
+          "description": "Play on matching color or number",
           "metadata": {
             "color": "green",
             "number": 1
@@ -721,7 +893,6 @@
       ],
       "isPlayable": true,
       "isReaction": false,
-      "count": 2,
       "metadata": {
         "color": "green",
         "number": 1,
@@ -734,14 +905,14 @@
       "name": "Green 2",
       "type": "number",
       "subtype": "number",
-      "emoji": "2\ufe0f\u20e3",
-      "description": "Play on green cards or other 2s.",
+      "emoji": "2️⃣",
+      "description": "Play on any green card or any 2.",
+      "count": 2,
       "effects": [
         {
           "type": "number",
-          "value": 2,
           "target": "self",
-          "description": "Standard number card.",
+          "description": "Play on matching color or number",
           "metadata": {
             "color": "green",
             "number": 2
@@ -750,7 +921,6 @@
       ],
       "isPlayable": true,
       "isReaction": false,
-      "count": 2,
       "metadata": {
         "color": "green",
         "number": 2,
@@ -763,14 +933,14 @@
       "name": "Green 3",
       "type": "number",
       "subtype": "number",
-      "emoji": "3\ufe0f\u20e3",
-      "description": "Play on green cards or other 3s.",
+      "emoji": "3️⃣",
+      "description": "Play on any green card or any 3.",
+      "count": 2,
       "effects": [
         {
           "type": "number",
-          "value": 3,
           "target": "self",
-          "description": "Standard number card.",
+          "description": "Play on matching color or number",
           "metadata": {
             "color": "green",
             "number": 3
@@ -779,7 +949,6 @@
       ],
       "isPlayable": true,
       "isReaction": false,
-      "count": 2,
       "metadata": {
         "color": "green",
         "number": 3,
@@ -792,14 +961,14 @@
       "name": "Green 4",
       "type": "number",
       "subtype": "number",
-      "emoji": "4\ufe0f\u20e3",
-      "description": "Play on green cards or other 4s.",
+      "emoji": "4️⃣",
+      "description": "Play on any green card or any 4.",
+      "count": 2,
       "effects": [
         {
           "type": "number",
-          "value": 4,
           "target": "self",
-          "description": "Standard number card.",
+          "description": "Play on matching color or number",
           "metadata": {
             "color": "green",
             "number": 4
@@ -808,7 +977,6 @@
       ],
       "isPlayable": true,
       "isReaction": false,
-      "count": 2,
       "metadata": {
         "color": "green",
         "number": 4,
@@ -821,14 +989,14 @@
       "name": "Green 5",
       "type": "number",
       "subtype": "number",
-      "emoji": "5\ufe0f\u20e3",
-      "description": "Play on green cards or other 5s.",
+      "emoji": "5️⃣",
+      "description": "Play on any green card or any 5.",
+      "count": 2,
       "effects": [
         {
           "type": "number",
-          "value": 5,
           "target": "self",
-          "description": "Standard number card.",
+          "description": "Play on matching color or number",
           "metadata": {
             "color": "green",
             "number": 5
@@ -837,7 +1005,6 @@
       ],
       "isPlayable": true,
       "isReaction": false,
-      "count": 2,
       "metadata": {
         "color": "green",
         "number": 5,
@@ -850,14 +1017,14 @@
       "name": "Green 6",
       "type": "number",
       "subtype": "number",
-      "emoji": "6\ufe0f\u20e3",
-      "description": "Play on green cards or other 6s.",
+      "emoji": "6️⃣",
+      "description": "Play on any green card or any 6.",
+      "count": 2,
       "effects": [
         {
           "type": "number",
-          "value": 6,
           "target": "self",
-          "description": "Standard number card.",
+          "description": "Play on matching color or number",
           "metadata": {
             "color": "green",
             "number": 6
@@ -866,7 +1033,6 @@
       ],
       "isPlayable": true,
       "isReaction": false,
-      "count": 2,
       "metadata": {
         "color": "green",
         "number": 6,
@@ -879,14 +1045,14 @@
       "name": "Green 7",
       "type": "number",
       "subtype": "number",
-      "emoji": "7\ufe0f\u20e3",
-      "description": "Play on green cards or other 7s.",
+      "emoji": "7️⃣",
+      "description": "Play on any green card or any 7.",
+      "count": 2,
       "effects": [
         {
           "type": "number",
-          "value": 7,
           "target": "self",
-          "description": "Standard number card.",
+          "description": "Play on matching color or number",
           "metadata": {
             "color": "green",
             "number": 7
@@ -895,7 +1061,6 @@
       ],
       "isPlayable": true,
       "isReaction": false,
-      "count": 2,
       "metadata": {
         "color": "green",
         "number": 7,
@@ -908,14 +1073,14 @@
       "name": "Green 8",
       "type": "number",
       "subtype": "number",
-      "emoji": "8\ufe0f\u20e3",
-      "description": "Play on green cards or other 8s.",
+      "emoji": "8️⃣",
+      "description": "Play on any green card or any 8.",
+      "count": 2,
       "effects": [
         {
           "type": "number",
-          "value": 8,
           "target": "self",
-          "description": "Standard number card.",
+          "description": "Play on matching color or number",
           "metadata": {
             "color": "green",
             "number": 8
@@ -924,7 +1089,6 @@
       ],
       "isPlayable": true,
       "isReaction": false,
-      "count": 2,
       "metadata": {
         "color": "green",
         "number": 8,
@@ -937,14 +1101,14 @@
       "name": "Green 9",
       "type": "number",
       "subtype": "number",
-      "emoji": "9\ufe0f\u20e3",
-      "description": "Play on green cards or other 9s.",
+      "emoji": "9️⃣",
+      "description": "Play on any green card or any 9.",
+      "count": 2,
       "effects": [
         {
           "type": "number",
-          "value": 9,
           "target": "self",
-          "description": "Standard number card.",
+          "description": "Play on matching color or number",
           "metadata": {
             "color": "green",
             "number": 9
@@ -953,7 +1117,6 @@
       ],
       "isPlayable": true,
       "isReaction": false,
-      "count": 2,
       "metadata": {
         "color": "green",
         "number": 9,
@@ -962,18 +1125,98 @@
       "imageUrl": "/static/cards/uno/green_9.jpg"
     },
     {
+      "id": "green_skip",
+      "name": "Green Skip",
+      "type": "action",
+      "subtype": "skip",
+      "emoji": "🚫",
+      "description": "The next player loses their turn.",
+      "count": 2,
+      "effects": [
+        {
+          "type": "skip",
+          "value": 1,
+          "target": "next_player",
+          "description": "Next player loses their turn",
+          "metadata": {
+            "color": "green"
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "metadata": {
+        "color": "green",
+        "points": 20
+      },
+      "imageUrl": "/static/cards/uno/green_skip.jpg"
+    },
+    {
+      "id": "green_reverse",
+      "name": "Green Reverse",
+      "type": "action",
+      "subtype": "reverse",
+      "emoji": "🔄",
+      "description": "Reverse the order of play.",
+      "count": 2,
+      "effects": [
+        {
+          "type": "reverse",
+          "target": "all",
+          "description": "Reverse direction of play",
+          "metadata": {
+            "color": "green"
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "metadata": {
+        "color": "green",
+        "points": 20
+      },
+      "imageUrl": "/static/cards/uno/green_reverse.jpg"
+    },
+    {
+      "id": "green_draw2",
+      "name": "Green Draw 2",
+      "type": "action",
+      "subtype": "draw2",
+      "emoji": "➕",
+      "description": "Next player draws 2 cards and loses their turn.",
+      "count": 2,
+      "effects": [
+        {
+          "type": "draw",
+          "value": 2,
+          "target": "next_player",
+          "description": "Force next player to draw 2 and skip",
+          "metadata": {
+            "color": "green"
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "metadata": {
+        "color": "green",
+        "points": 20
+      },
+      "imageUrl": "/static/cards/uno/green_draw_2.jpg"
+    },
+    {
       "id": "blue_0",
       "name": "Blue 0",
       "type": "number",
       "subtype": "number",
-      "emoji": "0\ufe0f\u20e3",
-      "description": "Play on blue cards or other 0s.",
+      "emoji": "0️⃣",
+      "description": "Play on any blue card or any 0.",
+      "count": 1,
       "effects": [
         {
           "type": "number",
-          "value": 0,
           "target": "self",
-          "description": "Standard number card.",
+          "description": "Play on matching color or number",
           "metadata": {
             "color": "blue",
             "number": 0
@@ -982,7 +1225,6 @@
       ],
       "isPlayable": true,
       "isReaction": false,
-      "count": 1,
       "metadata": {
         "color": "blue",
         "number": 0,
@@ -995,14 +1237,14 @@
       "name": "Blue 1",
       "type": "number",
       "subtype": "number",
-      "emoji": "1\ufe0f\u20e3",
-      "description": "Play on blue cards or other 1s.",
+      "emoji": "1️⃣",
+      "description": "Play on any blue card or any 1.",
+      "count": 2,
       "effects": [
         {
           "type": "number",
-          "value": 1,
           "target": "self",
-          "description": "Standard number card.",
+          "description": "Play on matching color or number",
           "metadata": {
             "color": "blue",
             "number": 1
@@ -1011,7 +1253,6 @@
       ],
       "isPlayable": true,
       "isReaction": false,
-      "count": 2,
       "metadata": {
         "color": "blue",
         "number": 1,
@@ -1024,14 +1265,14 @@
       "name": "Blue 2",
       "type": "number",
       "subtype": "number",
-      "emoji": "2\ufe0f\u20e3",
-      "description": "Play on blue cards or other 2s.",
+      "emoji": "2️⃣",
+      "description": "Play on any blue card or any 2.",
+      "count": 2,
       "effects": [
         {
           "type": "number",
-          "value": 2,
           "target": "self",
-          "description": "Standard number card.",
+          "description": "Play on matching color or number",
           "metadata": {
             "color": "blue",
             "number": 2
@@ -1040,7 +1281,6 @@
       ],
       "isPlayable": true,
       "isReaction": false,
-      "count": 2,
       "metadata": {
         "color": "blue",
         "number": 2,
@@ -1053,14 +1293,14 @@
       "name": "Blue 3",
       "type": "number",
       "subtype": "number",
-      "emoji": "3\ufe0f\u20e3",
-      "description": "Play on blue cards or other 3s.",
+      "emoji": "3️⃣",
+      "description": "Play on any blue card or any 3.",
+      "count": 2,
       "effects": [
         {
           "type": "number",
-          "value": 3,
           "target": "self",
-          "description": "Standard number card.",
+          "description": "Play on matching color or number",
           "metadata": {
             "color": "blue",
             "number": 3
@@ -1069,7 +1309,6 @@
       ],
       "isPlayable": true,
       "isReaction": false,
-      "count": 2,
       "metadata": {
         "color": "blue",
         "number": 3,
@@ -1082,14 +1321,14 @@
       "name": "Blue 4",
       "type": "number",
       "subtype": "number",
-      "emoji": "4\ufe0f\u20e3",
-      "description": "Play on blue cards or other 4s.",
+      "emoji": "4️⃣",
+      "description": "Play on any blue card or any 4.",
+      "count": 2,
       "effects": [
         {
           "type": "number",
-          "value": 4,
           "target": "self",
-          "description": "Standard number card.",
+          "description": "Play on matching color or number",
           "metadata": {
             "color": "blue",
             "number": 4
@@ -1098,7 +1337,6 @@
       ],
       "isPlayable": true,
       "isReaction": false,
-      "count": 2,
       "metadata": {
         "color": "blue",
         "number": 4,
@@ -1111,14 +1349,14 @@
       "name": "Blue 5",
       "type": "number",
       "subtype": "number",
-      "emoji": "5\ufe0f\u20e3",
-      "description": "Play on blue cards or other 5s.",
+      "emoji": "5️⃣",
+      "description": "Play on any blue card or any 5.",
+      "count": 2,
       "effects": [
         {
           "type": "number",
-          "value": 5,
           "target": "self",
-          "description": "Standard number card.",
+          "description": "Play on matching color or number",
           "metadata": {
             "color": "blue",
             "number": 5
@@ -1127,7 +1365,6 @@
       ],
       "isPlayable": true,
       "isReaction": false,
-      "count": 2,
       "metadata": {
         "color": "blue",
         "number": 5,
@@ -1140,14 +1377,14 @@
       "name": "Blue 6",
       "type": "number",
       "subtype": "number",
-      "emoji": "6\ufe0f\u20e3",
-      "description": "Play on blue cards or other 6s.",
+      "emoji": "6️⃣",
+      "description": "Play on any blue card or any 6.",
+      "count": 2,
       "effects": [
         {
           "type": "number",
-          "value": 6,
           "target": "self",
-          "description": "Standard number card.",
+          "description": "Play on matching color or number",
           "metadata": {
             "color": "blue",
             "number": 6
@@ -1156,7 +1393,6 @@
       ],
       "isPlayable": true,
       "isReaction": false,
-      "count": 2,
       "metadata": {
         "color": "blue",
         "number": 6,
@@ -1169,14 +1405,14 @@
       "name": "Blue 7",
       "type": "number",
       "subtype": "number",
-      "emoji": "7\ufe0f\u20e3",
-      "description": "Play on blue cards or other 7s.",
+      "emoji": "7️⃣",
+      "description": "Play on any blue card or any 7.",
+      "count": 2,
       "effects": [
         {
           "type": "number",
-          "value": 7,
           "target": "self",
-          "description": "Standard number card.",
+          "description": "Play on matching color or number",
           "metadata": {
             "color": "blue",
             "number": 7
@@ -1185,7 +1421,6 @@
       ],
       "isPlayable": true,
       "isReaction": false,
-      "count": 2,
       "metadata": {
         "color": "blue",
         "number": 7,
@@ -1198,14 +1433,14 @@
       "name": "Blue 8",
       "type": "number",
       "subtype": "number",
-      "emoji": "8\ufe0f\u20e3",
-      "description": "Play on blue cards or other 8s.",
+      "emoji": "8️⃣",
+      "description": "Play on any blue card or any 8.",
+      "count": 2,
       "effects": [
         {
           "type": "number",
-          "value": 8,
           "target": "self",
-          "description": "Standard number card.",
+          "description": "Play on matching color or number",
           "metadata": {
             "color": "blue",
             "number": 8
@@ -1214,7 +1449,6 @@
       ],
       "isPlayable": true,
       "isReaction": false,
-      "count": 2,
       "metadata": {
         "color": "blue",
         "number": 8,
@@ -1227,14 +1461,14 @@
       "name": "Blue 9",
       "type": "number",
       "subtype": "number",
-      "emoji": "9\ufe0f\u20e3",
-      "description": "Play on blue cards or other 9s.",
+      "emoji": "9️⃣",
+      "description": "Play on any blue card or any 9.",
+      "count": 2,
       "effects": [
         {
           "type": "number",
-          "value": 9,
           "target": "self",
-          "description": "Standard number card.",
+          "description": "Play on matching color or number",
           "metadata": {
             "color": "blue",
             "number": 9
@@ -1243,7 +1477,6 @@
       ],
       "isPlayable": true,
       "isReaction": false,
-      "count": 2,
       "metadata": {
         "color": "blue",
         "number": 9,
@@ -1252,99 +1485,19 @@
       "imageUrl": "/static/cards/uno/blue_9.jpg"
     },
     {
-      "id": "red_skip",
-      "name": "Red Skip",
-      "type": "action",
-      "subtype": "skip",
-      "emoji": "\ud83d\udeab",
-      "description": "Next player loses their turn.",
-      "effects": [
-        {
-          "type": "skip",
-          "value": 1,
-          "target": "next_player",
-          "description": "Next player loses their turn.",
-          "metadata": {
-            "color": "red"
-          }
-        }
-      ],
-      "isPlayable": true,
-      "isReaction": false,
-      "count": 2,
-      "metadata": {
-        "color": "red",
-        "points": 20
-      },
-      "imageUrl": "/static/cards/uno/red_skip.jpg"
-    },
-    {
-      "id": "yellow_skip",
-      "name": "Yellow Skip",
-      "type": "action",
-      "subtype": "skip",
-      "emoji": "\ud83d\udeab",
-      "description": "Next player loses their turn.",
-      "effects": [
-        {
-          "type": "skip",
-          "value": 1,
-          "target": "next_player",
-          "description": "Next player loses their turn.",
-          "metadata": {
-            "color": "yellow"
-          }
-        }
-      ],
-      "isPlayable": true,
-      "isReaction": false,
-      "count": 2,
-      "metadata": {
-        "color": "yellow",
-        "points": 20
-      },
-      "imageUrl": "/static/cards/uno/yellow_skip.jpg"
-    },
-    {
-      "id": "green_skip",
-      "name": "Green Skip",
-      "type": "action",
-      "subtype": "skip",
-      "emoji": "\ud83d\udeab",
-      "description": "Next player loses their turn.",
-      "effects": [
-        {
-          "type": "skip",
-          "value": 1,
-          "target": "next_player",
-          "description": "Next player loses their turn.",
-          "metadata": {
-            "color": "green"
-          }
-        }
-      ],
-      "isPlayable": true,
-      "isReaction": false,
-      "count": 2,
-      "metadata": {
-        "color": "green",
-        "points": 20
-      },
-      "imageUrl": "/static/cards/uno/green_skip.jpg"
-    },
-    {
       "id": "blue_skip",
       "name": "Blue Skip",
       "type": "action",
       "subtype": "skip",
-      "emoji": "\ud83d\udeab",
-      "description": "Next player loses their turn.",
+      "emoji": "🚫",
+      "description": "The next player loses their turn.",
+      "count": 2,
       "effects": [
         {
           "type": "skip",
           "value": 1,
           "target": "next_player",
-          "description": "Next player loses their turn.",
+          "description": "Next player loses their turn",
           "metadata": {
             "color": "blue"
           }
@@ -1352,7 +1505,6 @@
       ],
       "isPlayable": true,
       "isReaction": false,
-      "count": 2,
       "metadata": {
         "color": "blue",
         "points": 20
@@ -1360,95 +1512,18 @@
       "imageUrl": "/static/cards/uno/blue_skip.jpg"
     },
     {
-      "id": "red_reverse",
-      "name": "Red Reverse",
-      "type": "action",
-      "subtype": "reverse",
-      "emoji": "\ud83d\udd04",
-      "description": "Reverse the direction of play.",
-      "effects": [
-        {
-          "type": "reverse",
-          "target": "all",
-          "description": "Flip the turn order.",
-          "metadata": {
-            "color": "red"
-          }
-        }
-      ],
-      "isPlayable": true,
-      "isReaction": false,
-      "count": 2,
-      "metadata": {
-        "color": "red",
-        "points": 20
-      },
-      "imageUrl": "/static/cards/uno/red_reverse.jpg"
-    },
-    {
-      "id": "yellow_reverse",
-      "name": "Yellow Reverse",
-      "type": "action",
-      "subtype": "reverse",
-      "emoji": "\ud83d\udd04",
-      "description": "Reverse the direction of play.",
-      "effects": [
-        {
-          "type": "reverse",
-          "target": "all",
-          "description": "Flip the turn order.",
-          "metadata": {
-            "color": "yellow"
-          }
-        }
-      ],
-      "isPlayable": true,
-      "isReaction": false,
-      "count": 2,
-      "metadata": {
-        "color": "yellow",
-        "points": 20
-      },
-      "imageUrl": "/static/cards/uno/yellow_reverse.jpg"
-    },
-    {
-      "id": "green_reverse",
-      "name": "Green Reverse",
-      "type": "action",
-      "subtype": "reverse",
-      "emoji": "\ud83d\udd04",
-      "description": "Reverse the direction of play.",
-      "effects": [
-        {
-          "type": "reverse",
-          "target": "all",
-          "description": "Flip the turn order.",
-          "metadata": {
-            "color": "green"
-          }
-        }
-      ],
-      "isPlayable": true,
-      "isReaction": false,
-      "count": 2,
-      "metadata": {
-        "color": "green",
-        "points": 20
-      },
-      "imageUrl": "/static/cards/uno/green_reverse.jpg"
-    },
-    {
       "id": "blue_reverse",
       "name": "Blue Reverse",
       "type": "action",
       "subtype": "reverse",
-      "emoji": "\ud83d\udd04",
-      "description": "Reverse the direction of play.",
+      "emoji": "🔄",
+      "description": "Reverse the order of play.",
+      "count": 2,
       "effects": [
         {
           "type": "reverse",
           "target": "all",
-          "description": "Flip the turn order.",
+          "description": "Reverse direction of play",
           "metadata": {
             "color": "blue"
           }
@@ -1456,7 +1531,6 @@
       ],
       "isPlayable": true,
       "isReaction": false,
-      "count": 2,
       "metadata": {
         "color": "blue",
         "points": 20
@@ -1464,99 +1538,19 @@
       "imageUrl": "/static/cards/uno/blue_reverse.jpg"
     },
     {
-      "id": "red_draw_2",
-      "name": "Red Draw 2",
-      "type": "action",
-      "subtype": "draw2",
-      "emoji": "\u2795",
-      "description": "Next player draws 2 and loses their turn.",
-      "effects": [
-        {
-          "type": "draw",
-          "value": 2,
-          "target": "next_player",
-          "description": "Force next player to draw 2.",
-          "metadata": {
-            "color": "red"
-          }
-        }
-      ],
-      "isPlayable": true,
-      "isReaction": false,
-      "count": 2,
-      "metadata": {
-        "color": "red",
-        "points": 20
-      },
-      "imageUrl": "/static/cards/uno/red_draw_2.jpg"
-    },
-    {
-      "id": "yellow_draw_2",
-      "name": "Yellow Draw 2",
-      "type": "action",
-      "subtype": "draw2",
-      "emoji": "\u2795",
-      "description": "Next player draws 2 and loses their turn.",
-      "effects": [
-        {
-          "type": "draw",
-          "value": 2,
-          "target": "next_player",
-          "description": "Force next player to draw 2.",
-          "metadata": {
-            "color": "yellow"
-          }
-        }
-      ],
-      "isPlayable": true,
-      "isReaction": false,
-      "count": 2,
-      "metadata": {
-        "color": "yellow",
-        "points": 20
-      },
-      "imageUrl": "/static/cards/uno/yellow_draw_2.jpg"
-    },
-    {
-      "id": "green_draw_2",
-      "name": "Green Draw 2",
-      "type": "action",
-      "subtype": "draw2",
-      "emoji": "\u2795",
-      "description": "Next player draws 2 and loses their turn.",
-      "effects": [
-        {
-          "type": "draw",
-          "value": 2,
-          "target": "next_player",
-          "description": "Force next player to draw 2.",
-          "metadata": {
-            "color": "green"
-          }
-        }
-      ],
-      "isPlayable": true,
-      "isReaction": false,
-      "count": 2,
-      "metadata": {
-        "color": "green",
-        "points": 20
-      },
-      "imageUrl": "/static/cards/uno/green_draw_2.jpg"
-    },
-    {
-      "id": "blue_draw_2",
+      "id": "blue_draw2",
       "name": "Blue Draw 2",
       "type": "action",
       "subtype": "draw2",
-      "emoji": "\u2795",
-      "description": "Next player draws 2 and loses their turn.",
+      "emoji": "➕",
+      "description": "Next player draws 2 cards and loses their turn.",
+      "count": 2,
       "effects": [
         {
           "type": "draw",
           "value": 2,
           "target": "next_player",
-          "description": "Force next player to draw 2.",
+          "description": "Force next player to draw 2 and skip",
           "metadata": {
             "color": "blue"
           }
@@ -1564,7 +1558,6 @@
       ],
       "isPlayable": true,
       "isReaction": false,
-      "count": 2,
       "metadata": {
         "color": "blue",
         "points": 20
@@ -1576,22 +1569,21 @@
       "name": "Wild",
       "type": "wild",
       "subtype": "wild",
-      "emoji": "\ud83c\udf08",
-      "description": "Play on any card. Choose any color.",
+      "emoji": "🌈",
+      "description": "Play on any card. Choose any color to continue play.",
+      "count": 4,
       "effects": [
         {
           "type": "wild",
           "target": "self",
-          "description": "Change the active color.",
+          "description": "Change active color to any color of your choice",
           "metadata": {
-            "color": "wild",
-            "requiresColorChoice": true
+            "color": "wild"
           }
         }
       ],
       "isPlayable": true,
       "isReaction": false,
-      "count": 4,
       "metadata": {
         "color": "wild",
         "points": 50,
@@ -1600,28 +1592,26 @@
       "imageUrl": "/static/cards/uno/wild.jpg"
     },
     {
-      "id": "wild_draw_4",
+      "id": "wild_draw4",
       "name": "Wild Draw 4",
       "type": "wild",
-      "subtype": "wild_draw_4",
-      "emoji": "\ud83d\udca5",
-      "description": "Choose color. Next player draws 4 and loses turn. Can only be played if you have no matching color cards.",
+      "subtype": "wild_draw4",
+      "emoji": "🌈",
+      "description": "Choose any color. The next player draws 4 cards and loses their turn. Only legal if you have no cards matching the current color (challengeable!).",
+      "count": 4,
       "effects": [
         {
           "type": "wild_draw",
           "value": 4,
           "target": "next_player",
-          "description": "Wild card that forces next player to draw 4.",
+          "description": "Change color and force next player to draw 4",
           "metadata": {
-            "color": "wild",
-            "requiresColorChoice": true,
-            "challengeable": true
+            "color": "wild"
           }
         }
       ],
       "isPlayable": true,
       "isReaction": false,
-      "count": 4,
       "metadata": {
         "color": "wild",
         "points": 50,
@@ -1633,52 +1623,46 @@
   ],
   "ui": {
     "tableBackground": "#166534",
-    "cardBack": "\ud83c\udce0",
+    "cardBack": "🎴",
     "deckLabel": "Draw Pile",
-    "discardLabel": "Discard Pile",
-    "turnPrompt": "It's your turn! Play a matching card or draw.",
-    "waitPrompt": "Waiting for {playerName}\u2026",
-    "winMessage": "\ud83c\udf89 {playerName} wins the round!",
-    "eliminatedMessage": "\ud83d\udca5 {playerName} is out!",
+    "discardLabel": "Discard",
+    "turnPrompt": "Play a matching card or draw.",
+    "waitPrompt": "Waiting for {playerName}…",
+    "winMessage": "🎉 {playerName} shouts UNO and wins!",
+    "eliminatedMessage": "😔 {playerName} is out.",
     "actionLabels": {
-      "draw_card": "Draw Card \ud83c\udccf",
       "play_card": "Play",
-      "call_uno": "UNO! \ud83d\udde3\ufe0f",
+      "draw_card": "Draw Card",
+      "call_uno": "UNO! 🗣️",
       "choose_color": "Choose Color",
-      "challenge": "Challenge!",
-      "insert_card": "Place Card",
-      "select_target": "Choose Target"
+      "challenge_draw4": "Challenge!"
     },
     "specialPrompts": {
       "choose_color": "Choose a color to continue play",
-      "stack_draw": "You were hit with a draw! Stack or draw {total}?",
-      "challenge_draw4": "Challenge the Wild Draw 4?",
-      "uno_call": "You're down to 1 card \u2014 say UNO!",
-      "uno_penalty": "{playerName} forgot to say UNO \u2014 they draw 2!",
-      "insert_card": "Choose where to insert the card (0 = top)",
-      "favor_target_select": "Choose a player to request a card from",
-      "steal_target_select": "Choose a player to steal from",
-      "combo_target_select": "Choose a player to steal from"
+      "stack_draw2": "You were hit with Draw 2! Stack another or draw {total}?",
+      "challenge_draw4": "Challenge the Wild Draw 4? If they had a matching color, they draw 4 instead.",
+      "uno_call": "You're down to 1 card — say UNO!",
+      "uno_penalty": "{playerName} forgot to say UNO! They draw 2."
     },
     "colorPicker": {
       "red": {
         "label": "Red",
-        "emoji": "\ud83d\udd34",
+        "emoji": "🔴",
         "bg": "#dc2626"
       },
       "yellow": {
         "label": "Yellow",
-        "emoji": "\ud83d\udfe1",
+        "emoji": "🟡",
         "bg": "#ca8a04"
       },
       "green": {
         "label": "Green",
-        "emoji": "\ud83d\udfe2",
+        "emoji": "🟢",
         "bg": "#16a34a"
       },
       "blue": {
         "label": "Blue",
-        "emoji": "\ud83d\udd35",
+        "emoji": "🔵",
         "bg": "#2563eb"
       }
     }
