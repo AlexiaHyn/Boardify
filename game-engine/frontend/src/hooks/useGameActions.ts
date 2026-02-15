@@ -6,9 +6,10 @@ interface UseGameActionsOptions {
   roomCode: string;
   playerId: string;
   gameState: GameState | null;
+  onTriggeredEffects?: (effects: string[]) => void;
 }
 
-export function useGameActions({ roomCode, playerId, gameState }: UseGameActionsOptions) {
+export function useGameActions({ roomCode, playerId, gameState, onTriggeredEffects }: UseGameActionsOptions) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -18,14 +19,17 @@ export function useGameActions({ roomCode, playerId, gameState }: UseGameActions
       setLoading(true);
       setError(null);
       try {
-        await sendAction(roomCode, action);
+        const result = await sendAction(roomCode, action);
+        if (result.triggeredEffects?.length && onTriggeredEffects) {
+          onTriggeredEffects(result.triggeredEffects);
+        }
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Action failed');
       } finally {
         setLoading(false);
       }
     },
-    [roomCode, gameState],
+    [roomCode, gameState, onTriggeredEffects],
   );
 
   const drawCard = useCallback(

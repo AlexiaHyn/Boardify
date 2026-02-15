@@ -46,10 +46,6 @@ export function GameRoom({ roomCode, playerId, initialState }: GameRoomProps) {
         if (prev) {
           const newEntries = state.log.slice(prev.log.length);
           for (const entry of newEntries) {
-            const m = entry.message.match(/top3:(.+)$/);
-            if (m && entry.playerId === playerId) {
-              setSeeTheFutureCards(m[1].split(','));
-            }
             if (entry.type === 'effect' || entry.type === 'system') {
               showNotif(entry.message);
             }
@@ -58,13 +54,26 @@ export function GameRoom({ roomCode, playerId, initialState }: GameRoomProps) {
         return state;
       });
     },
-    [playerId, showNotif],
+    [showNotif],
   );
 
   const { connected } = useGameSocket({ roomCode, playerId, onStateUpdate });
 
+  // Handle triggered effects from action responses (e.g. See the Future peek)
+  const onTriggeredEffects = useCallback(
+    (effects: string[]) => {
+      for (const effect of effects) {
+        const m = effect.match(/^top(\d+):(.+)$/);
+        if (m) {
+          setSeeTheFutureCards(m[2].split(','));
+        }
+      }
+    },
+    [],
+  );
+
   const { loading, error, drawCard, playCard, playCombo, playNope, selectTarget, insertExploding, giveCard, respondToPendingAction, executeDefaultAction } =
-    useGameActions({ roomCode, playerId, gameState });
+    useGameActions({ roomCode, playerId, gameState, onTriggeredEffects });
 
   const localPlayer = gameState?.players.find((p) => p.id === playerId);
 
