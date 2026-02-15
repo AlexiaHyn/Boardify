@@ -1,0 +1,405 @@
+{
+  "id": "exploding_kittens",
+  "name": "Exploding Kittens",
+  "description": "A highly strategic kitty-powered version of Russian Roulette. Draw cards, play action cards, and avoid the Exploding Kittens!",
+  "version": "1.0.0",
+  "themeColor": "#FF6B35",
+  "backgroundEmoji": "\ud83d\udc31",
+  "rules": {
+    "minPlayers": 2,
+    "maxPlayers": 5,
+    "handSize": 7,
+    "turnStructure": {
+      "phases": [
+        {
+          "id": "play",
+          "name": "Play Cards",
+          "description": "Play any number of action cards from your hand",
+          "isOptional": true
+        },
+        {
+          "id": "draw",
+          "name": "Draw Card",
+          "description": "Draw the top card of the deck. If it's an Exploding Kitten and you have no Defuse, you're out!",
+          "isOptional": false
+        }
+      ],
+      "canPassTurn": false,
+      "mustPlayCard": false,
+      "drawCount": 1
+    },
+    "winCondition": {
+      "type": "last_standing",
+      "description": "Be the last player who hasn't exploded!",
+      "metadata": {}
+    },
+    "specialRules": [
+      {
+        "id": "nope_nope",
+        "name": "Nope a Nope",
+        "trigger": "on_play",
+        "description": "A Nope can itself be Noped. Players can chain Nopes back and forth.",
+        "metadata": {}
+      },
+      {
+        "id": "cat_combo",
+        "name": "Cat Combos",
+        "trigger": "on_play",
+        "description": "Play two matching Cat cards together to steal a random card from any player.",
+        "metadata": {}
+      },
+      {
+        "id": "defuse_insert",
+        "name": "Bomb Reinsertion",
+        "trigger": "on_defuse",
+        "description": "After defusing, you may insert the Exploding Kitten anywhere in the deck \u2014 even the top!",
+        "metadata": {}
+      },
+      {
+        "id": "attack_stack",
+        "name": "Attack Stacking",
+        "trigger": "on_attack",
+        "description": "If attacked, you can play an Attack card to pass the turns onward (cumulative).",
+        "metadata": {}
+      }
+    ]
+  },
+  "config": {
+    "allowNopeDuringDraw": false,
+    "showDeckCount": true,
+    "showDiscardPile": true,
+    "handVisible": false,
+    "bombInsertPositionVisible": false,
+    "comboTypes": [
+      "taco",
+      "rainbow",
+      "beard",
+      "potato",
+      "cattermelon"
+    ],
+    "matchColor": false,
+    "matchNumber": false,
+    "matchType": false,
+    "wildAlwaysPlayable": false,
+    "stackableDraw": false,
+    "startWithDiscard": false,
+    "drawUntilPlayable": false
+  },
+  "cards": [
+    {
+      "id": "defuse",
+      "name": "Defuse",
+      "type": "defense",
+      "subtype": "defuse",
+      "emoji": "\ud83d\udd27",
+      "description": "If you draw an Exploding Kitten, you can play this card instead of dying. Then, put the Exploding Kitten back in the deck wherever you'd like.",
+      "effects": [
+        {
+          "type": "defuse",
+          "consumes": "defuse",
+          "target": "self",
+          "description": "Use a Defuse card to avoid explosion"
+        }
+      ],
+      "isPlayable": false,
+      "isReaction": false,
+      "count": 6,
+      "metadata": {
+        "autoplay": true,
+        "guaranteedInStartHand": true
+      }
+    },
+    {
+      "id": "exploding",
+      "name": "Exploding Kitten",
+      "type": "special",
+      "subtype": "exploding",
+      "emoji": "\ud83d\udca3",
+      "description": "BOOM! Unless you have a Defuse card, you're out of the game. These cannot be Noped.",
+      "effects": [
+        {
+          "type": "eliminate",
+          "target": "self",
+          "description": "Eliminate the player unless defused",
+          "metadata": {
+            "conditions": [
+              {
+                "type": "has_card_type",
+                "value": "defuse"
+              }
+            ]
+          }
+        }
+      ],
+      "isPlayable": false,
+      "isReaction": false,
+      "count": 4,
+      "metadata": {
+        "notInStartDeck": true,
+        "notInStartHand": true,
+        "injectCount": "players_minus_one"
+      }
+    },
+    {
+      "id": "attack",
+      "name": "Attack",
+      "type": "action",
+      "subtype": "attack",
+      "emoji": "\u2694\ufe0f",
+      "description": "End your turn(s) without drawing any cards. Force the next player to take 2 turns in a row.",
+      "effects": [
+        {
+          "type": "skip",
+          "value": 1,
+          "target": "self",
+          "description": "End your turn without drawing"
+        },
+        {
+          "type": "draw",
+          "value": 2,
+          "target": "next_player",
+          "description": "Force next player to take 2 turns",
+          "metadata": {
+            "stackTurns": true
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 4,
+      "metadata": {}
+    },
+    {
+      "id": "skip",
+      "name": "Skip",
+      "type": "action",
+      "subtype": "skip",
+      "emoji": "\u23ed\ufe0f",
+      "description": "End your turn without drawing a card. If you're under attack, this only cancels one of your turns.",
+      "effects": [
+        {
+          "type": "skip",
+          "value": 1,
+          "target": "self",
+          "description": "End your turn without drawing"
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 4,
+      "metadata": {}
+    },
+    {
+      "id": "nope",
+      "name": "Nope",
+      "type": "reaction",
+      "subtype": "nope",
+      "emoji": "\ud83d\udeab",
+      "description": "Stop any action except an Exploding Kitten or a Defuse card. Can also Nope a Nope!",
+      "effects": [
+        {
+          "type": "cancel",
+          "target": "any_action",
+          "description": "Cancel any action card"
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": true,
+      "count": 5,
+      "metadata": {}
+    },
+    {
+      "id": "see_future",
+      "name": "See the Future",
+      "type": "action",
+      "subtype": "see_future",
+      "emoji": "\ud83d\udd2e",
+      "description": "Peek at the top 3 cards of the draw pile. Don't show them to anyone else!",
+      "effects": [
+        {
+          "type": "peek",
+          "value": 3,
+          "target": "self",
+          "description": "View top 3 cards of the deck"
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 5,
+      "metadata": {}
+    },
+    {
+      "id": "shuffle",
+      "name": "Shuffle",
+      "type": "action",
+      "subtype": "shuffle",
+      "emoji": "\ud83d\udd00",
+      "description": "Shuffle the draw pile without looking at any of the cards.",
+      "effects": [
+        {
+          "type": "shuffle",
+          "target": "draw_pile",
+          "description": "Shuffle the draw pile"
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 4,
+      "metadata": {}
+    },
+    {
+      "id": "favor",
+      "name": "Favor",
+      "type": "action",
+      "subtype": "favor",
+      "emoji": "\ud83d\ude4f",
+      "description": "Force any other player to give you a card of their choice from their hand.",
+      "effects": [
+        {
+          "type": "give",
+          "target": "choose_player",
+          "value": 1,
+          "description": "Force a player to give you a card"
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 4,
+      "metadata": {
+        "requiresTarget": true
+      }
+    },
+    {
+      "id": "taco",
+      "name": "Taco Cat",
+      "type": "combo",
+      "subtype": "taco",
+      "emoji": "\ud83c\udf2e",
+      "description": "Play this card with any other Taco Cat to steal a random card from any player.",
+      "effects": [
+        {
+          "type": "steal",
+          "target": "choose_player",
+          "cardChoice": "random",
+          "description": "Steal a random card (pair with matching cat)"
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 4,
+      "metadata": {
+        "comboGroup": "taco"
+      }
+    },
+    {
+      "id": "rainbow",
+      "name": "Rainbow Ralphing Cat",
+      "type": "combo",
+      "subtype": "rainbow",
+      "emoji": "\ud83c\udf08",
+      "description": "Play this card with another Rainbow Cat to steal a random card from any player.",
+      "effects": [
+        {
+          "type": "steal",
+          "target": "choose_player",
+          "cardChoice": "random",
+          "description": "Steal a random card (pair with matching cat)"
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 4,
+      "metadata": {
+        "comboGroup": "rainbow"
+      }
+    },
+    {
+      "id": "beard",
+      "name": "Beard Cat",
+      "type": "combo",
+      "subtype": "beard",
+      "emoji": "\ud83d\ude3a",
+      "description": "Play this card with another Beard Cat to steal a random card from any player.",
+      "effects": [
+        {
+          "type": "steal",
+          "target": "choose_player",
+          "cardChoice": "random",
+          "description": "Steal a random card (pair with matching cat)"
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 4,
+      "metadata": {
+        "comboGroup": "beard"
+      }
+    },
+    {
+      "id": "potato",
+      "name": "Potato Cat",
+      "type": "combo",
+      "subtype": "potato",
+      "emoji": "\ud83e\udd54",
+      "description": "Play this card with another Potato Cat to steal a random card from any player.",
+      "effects": [
+        {
+          "type": "steal",
+          "target": "choose_player",
+          "cardChoice": "random",
+          "description": "Steal a random card (pair with matching cat)"
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 4,
+      "metadata": {
+        "comboGroup": "potato"
+      }
+    },
+    {
+      "id": "cattermelon",
+      "name": "Cattermelon",
+      "type": "combo",
+      "subtype": "cattermelon",
+      "emoji": "\ud83c\udf49",
+      "description": "Play this card with another Cattermelon to steal a random card from any player.",
+      "effects": [
+        {
+          "type": "steal",
+          "target": "choose_player",
+          "cardChoice": "random",
+          "description": "Steal a random card (pair with matching cat)"
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 4,
+      "metadata": {
+        "comboGroup": "cattermelon"
+      }
+    }
+  ],
+  "ui": {
+    "tableBackground": "#1a472a",
+    "cardBack": "\ud83c\udca0",
+    "deckLabel": "Draw Pile",
+    "discardLabel": "Discard Pile",
+    "turnPrompt": "It's your turn! Play a card or draw.",
+    "waitPrompt": "Waiting for {playerName}...",
+    "winMessage": "\ud83c\udf89 {playerName} survived! All kittens have exploded!",
+    "eliminatedMessage": "\ud83d\udca5 {playerName} exploded!",
+    "actionLabels": {
+      "draw_card": "Draw Card \ud83c\udccf",
+      "play_card": "Play",
+      "select_target": "Choose Target",
+      "insert_exploding": "Place Bomb"
+    },
+    "specialPrompts": {
+      "favor_target_select": "Choose a player to take a card from",
+      "combo_target_select": "Choose a player to steal from",
+      "insert_exploding": "Choose where to insert the Exploding Kitten",
+      "see_future_reveal": "Top 3 cards of the deck"
+    }
+  }
+}
