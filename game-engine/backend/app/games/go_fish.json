@@ -1,7 +1,7 @@
 {
   "id": "go_fish",
   "name": "Go Fish",
-  "description": "Collect sets of four cards by asking other players for specific ranks.",
+  "description": "Classic matching card game where players collect sets of four cards of the same rank by asking opponents for cards.",
   "version": "1.0.0",
   "themeColor": "#0ea5e9",
   "backgroundEmoji": "\ud83d\udc20",
@@ -14,7 +14,7 @@
         {
           "id": "ask",
           "name": "Ask for Cards",
-          "description": "Ask another player for all cards of a specific rank.",
+          "description": "Ask another player for cards of a specific rank you have in your hand.",
           "isOptional": false
         }
       ],
@@ -24,7 +24,7 @@
     },
     "winCondition": {
       "type": "most_points",
-      "description": "Player with the most books (sets of 4 matching ranks) wins when all books are collected.",
+      "description": "Player with the most books (sets of four matching rank cards) wins when all books are collected.",
       "metadata": {
         "targetScore": 13
       }
@@ -33,20 +33,23 @@
       {
         "id": "book_collection",
         "name": "Book Collection",
-        "trigger": "on_combo",
-        "description": "When you collect all 4 cards of the same rank, immediately place them as a book."
+        "trigger": "on_play",
+        "description": "When you collect all four cards of the same rank, immediately place them face up as a book and take another turn.",
+        "metadata": {}
       },
       {
         "id": "must_have_rank",
         "name": "Must Have Rank to Ask",
         "trigger": "on_play",
-        "description": "You can only ask for ranks that you have at least one card of in your hand."
+        "description": "You can only ask for cards of ranks you already have at least one of in your hand.",
+        "metadata": {}
       },
       {
-        "id": "go_fish",
-        "name": "Go Fish",
+        "id": "go_fish_draw",
+        "name": "Go Fish Draw",
         "trigger": "on_draw",
-        "description": "If asked player has no cards of requested rank, you draw from the ocean."
+        "description": "When you draw the card you asked for, show it and take another turn.",
+        "metadata": {}
       }
     ]
   },
@@ -60,17 +63,18 @@
     "startWithDiscard": false,
     "excludeFromStartDiscard": [],
     "drawUntilPlayable": false,
+    "colors": [],
     "zones": [
       {
-        "id": "ocean",
-        "name": "Ocean",
+        "id": "stock",
+        "name": "Stock",
         "type": "deck",
         "isPublic": false
       },
       {
         "id": "books",
         "name": "Books",
-        "type": "discard",
+        "type": "books",
         "isPublic": true
       }
     ]
@@ -82,16 +86,15 @@
       "type": "number",
       "subtype": "ace",
       "emoji": "\ud83c\udca1",
-      "description": "Ace cards form books when you collect all 4.",
+      "description": "Ace rank card for collecting sets of four.",
       "effects": [
         {
           "type": "number",
           "value": 1,
           "target": "self",
-          "description": "Standard playing card.",
+          "description": "Standard playing card - collect four to make a book.",
           "metadata": {
-            "rank": "ace",
-            "number": 1
+            "rank": "ace"
           }
         }
       ],
@@ -100,9 +103,7 @@
       "count": 4,
       "metadata": {
         "rank": "ace",
-        "number": 1,
-        "points": 1,
-        "comboGroup": "ace"
+        "points": 1
       }
     },
     {
@@ -111,16 +112,15 @@
       "type": "number",
       "subtype": "two",
       "emoji": "\ud83c\udca2",
-      "description": "Two cards form books when you collect all 4.",
+      "description": "Two rank card for collecting sets of four.",
       "effects": [
         {
           "type": "number",
           "value": 2,
           "target": "self",
-          "description": "Standard playing card.",
+          "description": "Standard playing card - collect four to make a book.",
           "metadata": {
-            "rank": "two",
-            "number": 2
+            "rank": "two"
           }
         }
       ],
@@ -129,9 +129,7 @@
       "count": 4,
       "metadata": {
         "rank": "two",
-        "number": 2,
-        "points": 1,
-        "comboGroup": "two"
+        "points": 1
       }
     },
     {
@@ -140,16 +138,15 @@
       "type": "number",
       "subtype": "three",
       "emoji": "\ud83c\udca3",
-      "description": "Three cards form books when you collect all 4.",
+      "description": "Three rank card for collecting sets of four.",
       "effects": [
         {
           "type": "number",
           "value": 3,
           "target": "self",
-          "description": "Standard playing card.",
+          "description": "Standard playing card - collect four to make a book.",
           "metadata": {
-            "rank": "three",
-            "number": 3
+            "rank": "three"
           }
         }
       ],
@@ -158,9 +155,7 @@
       "count": 4,
       "metadata": {
         "rank": "three",
-        "number": 3,
-        "points": 1,
-        "comboGroup": "three"
+        "points": 1
       }
     },
     {
@@ -169,16 +164,15 @@
       "type": "number",
       "subtype": "four",
       "emoji": "\ud83c\udca4",
-      "description": "Four cards form books when you collect all 4.",
+      "description": "Four rank card for collecting sets of four.",
       "effects": [
         {
           "type": "number",
           "value": 4,
           "target": "self",
-          "description": "Standard playing card.",
+          "description": "Standard playing card - collect four to make a book.",
           "metadata": {
-            "rank": "four",
-            "number": 4
+            "rank": "four"
           }
         }
       ],
@@ -187,9 +181,7 @@
       "count": 4,
       "metadata": {
         "rank": "four",
-        "number": 4,
-        "points": 1,
-        "comboGroup": "four"
+        "points": 1
       }
     },
     {
@@ -198,16 +190,15 @@
       "type": "number",
       "subtype": "five",
       "emoji": "\ud83c\udca5",
-      "description": "Five cards form books when you collect all 4.",
+      "description": "Five rank card for collecting sets of four.",
       "effects": [
         {
           "type": "number",
           "value": 5,
           "target": "self",
-          "description": "Standard playing card.",
+          "description": "Standard playing card - collect four to make a book.",
           "metadata": {
-            "rank": "five",
-            "number": 5
+            "rank": "five"
           }
         }
       ],
@@ -216,9 +207,7 @@
       "count": 4,
       "metadata": {
         "rank": "five",
-        "number": 5,
-        "points": 1,
-        "comboGroup": "five"
+        "points": 1
       }
     },
     {
@@ -227,16 +216,15 @@
       "type": "number",
       "subtype": "six",
       "emoji": "\ud83c\udca6",
-      "description": "Six cards form books when you collect all 4.",
+      "description": "Six rank card for collecting sets of four.",
       "effects": [
         {
           "type": "number",
           "value": 6,
           "target": "self",
-          "description": "Standard playing card.",
+          "description": "Standard playing card - collect four to make a book.",
           "metadata": {
-            "rank": "six",
-            "number": 6
+            "rank": "six"
           }
         }
       ],
@@ -245,9 +233,7 @@
       "count": 4,
       "metadata": {
         "rank": "six",
-        "number": 6,
-        "points": 1,
-        "comboGroup": "six"
+        "points": 1
       }
     },
     {
@@ -256,16 +242,15 @@
       "type": "number",
       "subtype": "seven",
       "emoji": "\ud83c\udca7",
-      "description": "Seven cards form books when you collect all 4.",
+      "description": "Seven rank card for collecting sets of four.",
       "effects": [
         {
           "type": "number",
           "value": 7,
           "target": "self",
-          "description": "Standard playing card.",
+          "description": "Standard playing card - collect four to make a book.",
           "metadata": {
-            "rank": "seven",
-            "number": 7
+            "rank": "seven"
           }
         }
       ],
@@ -274,9 +259,7 @@
       "count": 4,
       "metadata": {
         "rank": "seven",
-        "number": 7,
-        "points": 1,
-        "comboGroup": "seven"
+        "points": 1
       }
     },
     {
@@ -285,16 +268,15 @@
       "type": "number",
       "subtype": "eight",
       "emoji": "\ud83c\udca8",
-      "description": "Eight cards form books when you collect all 4.",
+      "description": "Eight rank card for collecting sets of four.",
       "effects": [
         {
           "type": "number",
           "value": 8,
           "target": "self",
-          "description": "Standard playing card.",
+          "description": "Standard playing card - collect four to make a book.",
           "metadata": {
-            "rank": "eight",
-            "number": 8
+            "rank": "eight"
           }
         }
       ],
@@ -303,9 +285,7 @@
       "count": 4,
       "metadata": {
         "rank": "eight",
-        "number": 8,
-        "points": 1,
-        "comboGroup": "eight"
+        "points": 1
       }
     },
     {
@@ -314,16 +294,15 @@
       "type": "number",
       "subtype": "nine",
       "emoji": "\ud83c\udca9",
-      "description": "Nine cards form books when you collect all 4.",
+      "description": "Nine rank card for collecting sets of four.",
       "effects": [
         {
           "type": "number",
           "value": 9,
           "target": "self",
-          "description": "Standard playing card.",
+          "description": "Standard playing card - collect four to make a book.",
           "metadata": {
-            "rank": "nine",
-            "number": 9
+            "rank": "nine"
           }
         }
       ],
@@ -332,9 +311,7 @@
       "count": 4,
       "metadata": {
         "rank": "nine",
-        "number": 9,
-        "points": 1,
-        "comboGroup": "nine"
+        "points": 1
       }
     },
     {
@@ -343,16 +320,15 @@
       "type": "number",
       "subtype": "ten",
       "emoji": "\ud83c\udcaa",
-      "description": "Ten cards form books when you collect all 4.",
+      "description": "Ten rank card for collecting sets of four.",
       "effects": [
         {
           "type": "number",
           "value": 10,
           "target": "self",
-          "description": "Standard playing card.",
+          "description": "Standard playing card - collect four to make a book.",
           "metadata": {
-            "rank": "ten",
-            "number": 10
+            "rank": "ten"
           }
         }
       ],
@@ -361,9 +337,7 @@
       "count": 4,
       "metadata": {
         "rank": "ten",
-        "number": 10,
-        "points": 1,
-        "comboGroup": "ten"
+        "points": 1
       }
     },
     {
@@ -372,16 +346,15 @@
       "type": "number",
       "subtype": "jack",
       "emoji": "\ud83c\udcab",
-      "description": "Jack cards form books when you collect all 4.",
+      "description": "Jack rank card for collecting sets of four.",
       "effects": [
         {
           "type": "number",
           "value": 11,
           "target": "self",
-          "description": "Standard playing card.",
+          "description": "Standard playing card - collect four to make a book.",
           "metadata": {
-            "rank": "jack",
-            "number": 11
+            "rank": "jack"
           }
         }
       ],
@@ -390,9 +363,7 @@
       "count": 4,
       "metadata": {
         "rank": "jack",
-        "number": 11,
-        "points": 1,
-        "comboGroup": "jack"
+        "points": 1
       }
     },
     {
@@ -401,16 +372,15 @@
       "type": "number",
       "subtype": "queen",
       "emoji": "\ud83c\udcad",
-      "description": "Queen cards form books when you collect all 4.",
+      "description": "Queen rank card for collecting sets of four.",
       "effects": [
         {
           "type": "number",
           "value": 12,
           "target": "self",
-          "description": "Standard playing card.",
+          "description": "Standard playing card - collect four to make a book.",
           "metadata": {
-            "rank": "queen",
-            "number": 12
+            "rank": "queen"
           }
         }
       ],
@@ -419,9 +389,7 @@
       "count": 4,
       "metadata": {
         "rank": "queen",
-        "number": 12,
-        "points": 1,
-        "comboGroup": "queen"
+        "points": 1
       }
     },
     {
@@ -430,16 +398,15 @@
       "type": "number",
       "subtype": "king",
       "emoji": "\ud83c\udcae",
-      "description": "King cards form books when you collect all 4.",
+      "description": "King rank card for collecting sets of four.",
       "effects": [
         {
           "type": "number",
           "value": 13,
           "target": "self",
-          "description": "Standard playing card.",
+          "description": "Standard playing card - collect four to make a book.",
           "metadata": {
-            "rank": "king",
-            "number": 13
+            "rank": "king"
           }
         }
       ],
@@ -448,34 +415,39 @@
       "count": 4,
       "metadata": {
         "rank": "king",
-        "number": 13,
-        "points": 1,
-        "comboGroup": "king"
+        "points": 1
       }
     }
   ],
   "ui": {
-    "tableBackground": "#1e40af",
-    "cardBack": "\ud83c\udfb4",
-    "deckLabel": "Ocean",
+    "tableBackground": "#0ea5e9",
+    "cardBack": "\ud83c\udca0",
+    "deckLabel": "Stock",
     "discardLabel": "Books",
-    "turnPrompt": "Ask another player for cards of a specific rank!",
+    "turnPrompt": "Ask another player for cards of a rank you have!",
     "waitPrompt": "Waiting for {playerName} to ask for cards...",
     "winMessage": "\ud83c\udfc6 {playerName} wins with the most books!",
-    "eliminatedMessage": "\ud83d\udc1f {playerName} is out of cards!",
+    "eliminatedMessage": "\ud83d\udc20 {playerName} is out of cards!",
     "actionLabels": {
-      "draw_card": "Go Fish! \ud83c\udfa3",
+      "draw_card": "Go Fish! \ud83d\udc20",
       "play_card": "Ask",
-      "select_target": "Choose Player",
-      "choose_rank": "Choose Rank"
+      "call_uno": "",
+      "choose_color": "",
+      "challenge": "",
+      "insert_card": "",
+      "select_target": "Choose Player"
     },
     "specialPrompts": {
-      "ask_for_cards": "Choose a player to ask for cards",
-      "choose_rank": "Choose which rank to ask for",
-      "go_fish": "Go Fish! Draw a card from the ocean",
-      "book_formed": "You formed a book! Place it on the table",
-      "give_cards": "Give all your {rank} cards to {playerName}",
-      "no_cards_of_rank": "{playerName} has no {rank} cards - Go Fish!"
-    }
+      "choose_color": "",
+      "stack_draw": "",
+      "challenge_draw4": "",
+      "uno_call": "",
+      "uno_penalty": "",
+      "insert_card": "",
+      "favor_target_select": "Choose a player to ask for cards",
+      "steal_target_select": "",
+      "combo_target_select": ""
+    },
+    "colorPicker": {}
   }
 }

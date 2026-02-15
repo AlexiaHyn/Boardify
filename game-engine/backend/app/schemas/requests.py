@@ -65,6 +65,7 @@ class GenerateGameResponse(BaseModel):
     success: bool
     game_id: str = ""
     game_name: str = ""
+    description: str = ""
     message: str = ""
     errors: List[str] = []
     warnings: List[str] = []

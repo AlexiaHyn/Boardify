@@ -46,6 +46,7 @@ async def generate_game(req: GenerateGameRequest):
         success=result.get("success", False),
         game_id=result.get("game_id", ""),
         game_name=result.get("game_name", ""),
+        description=result.get("description", ""),
         message=result.get("message", result.get("error", "")),
         errors=result.get("errors", []),
         warnings=result.get("warnings", []),

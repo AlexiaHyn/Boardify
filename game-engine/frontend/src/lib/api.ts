@@ -81,6 +81,7 @@ export interface GenerateGameResponse {
   success: boolean;
   game_id: string;
   game_name: string;
+  description: string;
   message: string;
   errors: string[];
   warnings: string[];
