@@ -75,6 +75,26 @@ export async function getRoomState(roomCode: string): Promise<GameState> {
   return data.state;
 }
 
+// ── AI game generation ───────────────────────────────────────────────────────
+
+export interface GenerateGameResponse {
+  success: boolean;
+  game_id: string;
+  game_name: string;
+  message: string;
+  errors: string[];
+  warnings: string[];
+}
+
+export async function generateGame(
+  gameName: string,
+): Promise<GenerateGameResponse> {
+  return request('/api/games/generate', {
+    method: 'POST',
+    body: JSON.stringify({ game_name: gameName }),
+  });
+}
+
 // ── WebSocket ─────────────────────────────────────────────────────────────────
 
 export function buildWsUrl(roomCode: string, playerId: string): string {

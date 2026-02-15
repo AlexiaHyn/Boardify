@@ -95,12 +95,21 @@ export interface LogEntry {
   cardId?: string;
 }
 
+export interface Choice {
+  value: string;
+  label: string;
+  icon?: string;
+  color?: string;
+}
+
 export interface PendingAction {
   type: string;
   playerId: string;
   targetPlayerId?: string;
   card?: Card;
   deckSize?: number;
+  choices?: Choice[];
+  prompt?: string;
   [key: string]: unknown;
 }
 

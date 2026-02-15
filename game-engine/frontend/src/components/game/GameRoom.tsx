@@ -62,7 +62,7 @@ export function GameRoom({ roomCode, playerId, initialState }: GameRoomProps) {
 
   const { connected } = useGameSocket({ roomCode, playerId, onStateUpdate });
 
-  const { loading, error, drawCard, playCard, playCombo, playNope, selectTarget, insertExploding, giveCard } =
+  const { loading, error, drawCard, playCard, playCombo, playNope, selectTarget, insertExploding, giveCard, respondToPendingAction } =
     useGameActions({ roomCode, playerId, gameState });
 
   const localPlayer = gameState?.players.find((p) => p.id === playerId);
@@ -269,6 +269,7 @@ export function GameRoom({ roomCode, playerId, initialState }: GameRoomProps) {
           onGiveCard={giveCard}
           onSelectTarget={selectTarget}
           onPlayNope={playNope}
+          onRespond={respondToPendingAction}
         />
       )}
 

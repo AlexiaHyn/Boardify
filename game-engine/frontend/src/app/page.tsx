@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { generateGame } from '@/lib/api';
 
 /* ─── Example prompts for typing animation ─────────────────────────── */
 
@@ -72,11 +74,43 @@ function Diamond({ className = '' }: { className?: string }) {
 /* ─── Page ────────────────────────────────────────────────────────── */
 
 export default function HomePage() {
+  const router = useRouter();
   const [prompt, setPrompt] = useState('');
   const typedText = useTypingAnimation(EXAMPLE_PROMPTS);
 
   const [inputFocused, setInputFocused] = useState(false);
   const showAnimatedPlaceholder = !inputFocused && prompt.length === 0;
+
+  // AI generation state
+  const [generating, setGenerating] = useState(false);
+  const [genMessage, setGenMessage] = useState('');
+  const [error, setError] = useState('');
+
+  const handleGenerate = async () => {
+    if (!prompt.trim()) { setError('Enter a game idea to generate'); return; }
+    setGenerating(true);
+    setError('');
+    setGenMessage('Researching rules and generating game — this may take a minute…');
+    try {
+      const res = await generateGame(prompt.trim());
+      if (res.success) {
+        setGenMessage(`"${res.game_name}" is ready to play!`);
+        setPrompt('');
+        // Navigate to room creation for the new game
+        setTimeout(() => {
+          router.push(`/room?game=${res.game_id}`);
+        }, 1200);
+      } else {
+        setGenMessage('');
+        setError(res.message || 'Generation failed');
+      }
+    } catch (e) {
+      setGenMessage('');
+      setError((e as Error).message);
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   return (
     <main className="relative flex min-h-screen flex-col items-center px-4 py-12">
@@ -121,7 +155,7 @@ export default function HomePage() {
 
         {/* Input form */}
         <form
-          onSubmit={(e) => e.preventDefault()}
+          onSubmit={(e) => { e.preventDefault(); handleGenerate(); }}
           className="mt-10 w-full max-w-2xl animate-fade-in-up stagger-2"
         >
           <div className="relative">
@@ -157,7 +191,8 @@ export default function HomePage() {
                     onChange={(e) => setPrompt(e.target.value)}
                     onFocus={() => setInputFocused(true)}
                     onBlur={() => setInputFocused(false)}
-                    className="input-naked font-body relative z-10 w-full border-none bg-transparent px-4 py-4 text-base text-[var(--color-cream)] outline-none"
+                    disabled={generating}
+                    className="input-naked font-body relative z-10 w-full border-none bg-transparent px-4 py-4 text-base text-[var(--color-cream)] outline-none disabled:opacity-50"
                   />
                   {/* Animated typing placeholder */}
                   {showAnimatedPlaceholder && (
@@ -173,10 +208,10 @@ export default function HomePage() {
                 <div className="pr-2">
                   <button
                     type="submit"
-                    disabled
-                    className="btn-press rounded-lg bg-[var(--color-crimson)] px-6 py-2.5 font-display text-sm font-medium tracking-wider text-[var(--color-cream)] disabled:cursor-not-allowed disabled:opacity-40"
+                    disabled={generating || !prompt.trim()}
+                    className="btn-press rounded-lg bg-[var(--color-crimson)] px-6 py-2.5 font-display text-sm font-medium tracking-wider text-[var(--color-cream)] transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    GENERATE
+                    {generating ? 'GENERATING…' : 'GENERATE'}
                   </button>
                 </div>
               </div>
@@ -185,6 +220,21 @@ export default function HomePage() {
             {/* Subtle glow under input */}
             <div className="absolute -bottom-4 left-1/2 h-8 w-3/4 -translate-x-1/2 rounded-full bg-[var(--color-gold)] opacity-[0.03] blur-xl" />
           </div>
+
+          {/* Generation status message */}
+          {genMessage && (
+            <p className="mt-3 text-center font-body text-sm text-[var(--color-gold)] bg-[var(--color-gold-muted)] rounded-lg px-4 py-2">
+              {generating && <span className="animate-pulse mr-1">⏳</span>}
+              {genMessage}
+            </p>
+          )}
+
+          {/* Error message */}
+          {error && (
+            <p className="mt-3 text-center font-body text-sm text-[var(--color-crimson)] bg-red-900/20 rounded-lg px-4 py-2">
+              {error}
+            </p>
+          )}
 
           {/* Suggestion chips */}
           <div className="mt-5 flex flex-wrap items-center justify-center gap-2 animate-fade-in stagger-4">
@@ -200,18 +250,14 @@ export default function HomePage() {
                 key={suggestion}
                 type="button"
                 onClick={() => setPrompt(suggestion)}
-                className="btn-press rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1 font-body text-xs text-[var(--color-stone)] transition-all hover:border-[var(--color-gold-dim)] hover:text-[var(--color-cream)]"
+                disabled={generating}
+                className="btn-press rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1 font-body text-xs text-[var(--color-stone)] transition-all hover:border-[var(--color-gold-dim)] hover:text-[var(--color-cream)] disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {suggestion}
               </button>
             ))}
           </div>
         </form>
-
-        {/* Coming soon notice */}
-        <p className="mt-3 font-body text-xs italic text-[var(--color-stone-dim)] animate-fade-in stagger-5">
-          Game generation coming soon
-        </p>
 
         {/* Divider */}
         <div className="mt-12 flex w-full max-w-md items-center gap-4 animate-fade-in stagger-6">

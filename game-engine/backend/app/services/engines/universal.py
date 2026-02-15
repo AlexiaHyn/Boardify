@@ -326,6 +326,7 @@ def _effect_skip(state, player, card, effect, action, triggered):
     """Skip next player(s)."""
     skip_count = effect.get("value", 1)
     active = _active(state)
+    _set_active_color(state, card)
     if len(active) == 2 and _cfg(state).get("reverseEqualsSkipTwoPlayers") and card.subtype == "reverse":
         skip_count = 1
     targets = [_peek_next(state, skip=i) for i in range(skip_count)]
@@ -364,6 +365,8 @@ def _effect_draw(state, player, card, effect, action, triggered):
     target_mode = effect.get("target", "next_player")
     stackable = _cfg(state).get("stackableDraw", False)
 
+    _set_active_color(state, card)
+
     if stackable:
         state.metadata["pendingDraw"] = state.metadata.get("pendingDraw", 0) + n
         total = state.metadata["pendingDraw"]
@@ -373,7 +376,8 @@ def _effect_draw(state, player, card, effect, action, triggered):
             "action", player.id, card.id,
         ))
         triggered.append(f"draw_stack:{total}")
-        return {"advance_after": True}
+        # Don't skip - let next player respond by stacking or drawing
+        return None
 
     # Non-stacking: apply immediately
     if target_mode == "next_player":
@@ -442,6 +446,7 @@ def _effect_wild_draw(state, player, card, effect, action, triggered):
     chosen = (action.metadata or {}).get("chosenColor") or (action.metadata or {}).get("color")
     valid_colors = _cfg(state).get("colors", ["red", "yellow", "green", "blue"])
     stackable = _cfg(state).get("stackableDraw", False)
+    allow_challenge = _cfg(state).get("allowWildDraw4Challenge", False)
 
     pending_total = state.metadata.get("pendingDraw", 0) + n
     state.metadata["pendingDraw"] = pending_total
@@ -457,7 +462,15 @@ def _effect_wild_draw(state, player, card, effect, action, triggered):
             "action", player.id, card.id,
         ))
         triggered.append(f"wild_draw:{pending_total}")
-        return {"skip": 1, "challenge_window": True, "draw_count": pending_total}
+        # Only open challenge window if configured AND there are 3+ players
+        # (challenge mechanics don't work well in 2-player games)
+        active_count = len(_active(state))
+        if allow_challenge and active_count > 2:
+            return {"skip": 1, "challenge_window": True, "draw_count": pending_total}
+        else:
+            # Behave like regular draw card - next player draws or stacks
+            # Don't skip - let them respond
+            return None
     else:
         return {"needs_color_choice": True, "draw_count": pending_total, "is_wild_draw": True, "draw_n": n}
 
@@ -945,6 +958,23 @@ def _action_play_card(state, action) -> Tuple[bool, str, List[str]]:
         if result.get("needs_color_choice"):
             # Enter awaiting_response for color picker
             state.phase = "awaiting_response"
+
+            # Build choices from game config
+            config = _cfg(state)
+            colors = config.get("colors", ["red", "yellow", "green", "blue"])
+            color_emojis = config.get("colorEmojis", {
+                "red": "🔴", "yellow": "🟡", "green": "🟢", "blue": "🔵"
+            })
+
+            choices = [
+                {
+                    "value": color,
+                    "label": color.capitalize(),
+                    "icon": color_emojis.get(color, "⚪")
+                }
+                for color in colors
+            ]
+
             state.pendingAction = {
                 "type": "choose_color",
                 "playerId": player.id,
@@ -952,6 +982,8 @@ def _action_play_card(state, action) -> Tuple[bool, str, List[str]]:
                 "drawCount": result.get("draw_count", 0),
                 "isWildDraw": result.get("is_wild_draw", False),
                 "drawN": result.get("draw_n", 0),
+                "choices": choices,
+                "prompt": "Choose a color for the Wild card",
             }
             halt = True
         if result.get("needs_target"):
@@ -963,15 +995,15 @@ def _action_play_card(state, action) -> Tuple[bool, str, List[str]]:
             }
             halt = True
         if result.get("challenge_window"):
-            # Advance turn first, then pause for challenge
+            # Advance to next player (who will challenge or accept), don't skip them yet
             if not halt:
-                _advance_turn(state, skip=skip_extra)
-                skip_extra = 0
+                _advance_turn(state, skip=0)  # Advance to next player without skipping
+                skip_extra = 0  # Clear skip since we handled turn advancement
             state.phase = "awaiting_response"
             state.pendingAction = {
                 "type": "challenge_or_accept",
-                "playerId": state.currentTurnPlayerId,
-                "challengedPlayerId": player.id,
+                "playerId": state.currentTurnPlayerId,  # Next player responds
+                "challengedPlayerId": player.id,  # Original player who played the card
                 "drawCount": result.get("draw_count", 4),
             }
             halt = True
@@ -1068,16 +1100,23 @@ def _action_choose_color(state, action) -> Tuple[bool, str, List[str]]:
         return True, "", triggered
 
     if is_wild_draw and draw_count > 0:
-        # Advance and open challenge window
-        _advance_turn(state)
-        state.phase = "awaiting_response"
-        state.pendingAction = {
-            "type": "challenge_or_accept",
-            "playerId": state.currentTurnPlayerId,
-            "challengedPlayerId": pending["playerId"],
-            "drawCount": draw_count,
-        }
-        triggered.append(f"wild_draw_pending:{draw_count}")
+        allow_challenge = _cfg(state).get("allowWildDraw4Challenge", False)
+        active_count = len(_active(state))
+        # Only open challenge window if configured AND there are 3+ players
+        if allow_challenge and active_count > 2:
+            # Advance and open challenge window
+            _advance_turn(state)
+            state.phase = "awaiting_response"
+            state.pendingAction = {
+                "type": "challenge_or_accept",
+                "playerId": state.currentTurnPlayerId,
+                "challengedPlayerId": pending["playerId"],
+                "drawCount": draw_count,
+            }
+            triggered.append(f"wild_draw_pending:{draw_count}")
+        else:
+            # Treat like regular draw - next player can stack or draw (2 players or challenge disabled)
+            _advance_turn(state)
     else:
         _advance_turn(state)
 
@@ -1183,13 +1222,17 @@ def _action_challenge(state, action) -> Tuple[bool, str, List[str]]:
     else:
         was_illegal = state.metadata.get("lastWildDraw4WasIllegal", False)
         if was_illegal:
+            # Challenge successful: challenged player draws, challenger gets to play
             if challenged:
                 _draw_n(state, challenged, 4)
                 state.log.append(_log(
-                    f"⚖️ Challenge SUCCESS! {challenged.name} draws 4!", "effect",
+                    f"⚖️ Challenge SUCCESS! {challenged.name} draws 4! {challenger.name if challenger else '?'} plays.",
+                    "effect",
                 ))
             triggered.append("challenge_success")
+            # Don't advance turn - challenger stays current and gets to play their turn
         else:
+            # Challenge failed: challenger draws penalty and loses their turn
             penalty = draw_count + 2
             if challenger:
                 _draw_n(state, challenger, penalty)

@@ -1,13 +1,16 @@
 """
-HTTP API routes for room management and game actions.
+HTTP API routes for room management, game actions, and AI game generation.
 """
 from __future__ import annotations
+
+import asyncio
 
 from fastapi import APIRouter, HTTPException
 
 from app.schemas.requests import (
     ActionRequest, ActionResponse, AvailableGamesResponse,
     CreateRoomRequest, CreateRoomResponse,
+    GenerateGameRequest, GenerateGameResponse,
     JoinRoomRequest, JoinRoomResponse,
 )
 from app.services import game_loader, room_manager
@@ -21,6 +24,32 @@ router = APIRouter(prefix="/api")
 def list_games():
     """Return all available game types (discovered from JSON files)."""
     return AvailableGamesResponse(games=game_loader.list_available_games())
+
+
+# ── AI game generation ────────────────────────────────────────────────────────
+
+@router.post("/games/generate", response_model=GenerateGameResponse)
+async def generate_game(req: GenerateGameRequest):
+    """
+    Generate a new card game definition using AI.
+
+    Pipeline: Perplexity Sonar (rules research) -> Anthropic Claude (JSON
+    generation) -> Modal Sandbox (validation) -> saved to /games directory.
+    """
+    from app.services import game_generator
+
+    # Run the synchronous Modal pipeline in a thread so we don't block the
+    # event loop (Modal .remote() calls are synchronous).
+    result = await asyncio.to_thread(game_generator.generate_game, req.game_name)
+
+    return GenerateGameResponse(
+        success=result.get("success", False),
+        game_id=result.get("game_id", ""),
+        game_name=result.get("game_name", ""),
+        message=result.get("message", result.get("error", "")),
+        errors=result.get("errors", []),
+        warnings=result.get("warnings", []),
+    )
 
 
 # ── Room lifecycle ────────────────────────────────────────────────────────────
@@ -92,7 +121,11 @@ async def room_action(room_code: str, action: ActionRequest):
     if state.phase not in ("playing", "awaiting_response"):
         raise HTTPException(status_code=400, detail="Game is not in progress")
 
-    engine = game_loader._get_engine(state.gameType)
+    # Load universal engine + game plugin (plugin used inside apply_action)
+    engine, plugin = game_loader._get_engine_and_plugin(
+        state.gameType,
+        state.metadata.get("gameConfig", {})
+    )
     success, error, triggered = engine.apply_action(state, action)
     if not success:
         raise HTTPException(status_code=400, detail=error)
