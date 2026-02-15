@@ -1,5 +1,7 @@
 // Game catalogue — maps numeric IDs to game metadata
 
+import type { GameInfo } from '@/types/game';
+
 export interface GameConfig {
   id: number;
   name: string;
@@ -9,6 +11,7 @@ export interface GameConfig {
   accentColorRgb: string;
   playerCount: string;
   gameType: string; // maps to backend game_type
+  source: 'backend' | 'custom'; // where this entry came from
 }
 
 // ── Accent color palette for AI-generated games ─────────────────────────────
@@ -24,6 +27,14 @@ const GENERATED_COLORS = [
 ];
 
 const GENERATED_EMOJIS = ['🎲', '🃏', '✨', '🎯', '🧩', '🎪', '🌀'];
+
+// ── Hex → RGB helper ────────────────────────────────────────────────────────
+
+function hexToRgb(hex: string): string {
+  const h = hex.replace('#', '');
+  const n = parseInt(h, 16);
+  return `${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}`;
+}
 
 // ── localStorage persistence for custom games ───────────────────────────────
 
@@ -48,55 +59,40 @@ function saveCustomGames(games: GameConfig[]) {
   }
 }
 
-// ── Built-in (static) games ─────────────────────────────────────────────────
+// ── Mutable game list (installed/custom games only) ──────────────────────────
 
-const BUILT_IN_GAMES: GameConfig[] = [
-  {
-    id: 0,
-    name: 'Exploding Kittens',
-    description:
-      'A strategic card game of kitty-powered mayhem. Draw cards, avoid explosions, and be the last player standing.',
-    emoji: '🐱',
-    accentColor: '#FF6B35',
-    accentColorRgb: '255, 107, 53',
-    playerCount: '2–5 players',
-    gameType: 'exploding_kittens',
-  },
-  {
-    id: 1,
-    name: 'Poker',
-    description:
-      'The timeless game of skill, strategy, and nerve. Read your opponents, manage your chips, and claim the pot.',
-    emoji: '♠️',
-    accentColor: '#E63946',
-    accentColorRgb: '230, 57, 70',
-    playerCount: '2–8 players',
-    gameType: 'poker',
-  },
-  {
-    id: 2,
-    name: 'Uno',
-    description:
-      'Match colors, stack cards, and unleash chaos. The classic card game that turns friends into rivals.',
-    emoji: '🎴',
-    accentColor: '#2EC4B6',
-    accentColorRgb: '46, 196, 182',
-    playerCount: '2–10 players',
-    gameType: 'uno',
-  },
-];
-
-// ── Mutable game list (built-ins + dynamic) ─────────────────────────────────
-
-export const GAMES: GameConfig[] = [...BUILT_IN_GAMES];
+export const GAMES: GameConfig[] = [];
 
 // Hydrate from localStorage on the client
 if (typeof window !== 'undefined') {
   const custom = loadCustomGames();
   for (const g of custom) {
     if (!GAMES.some((x) => x.gameType === g.gameType)) {
-      GAMES.push(g);
+      GAMES.push({ ...g, source: g.source ?? 'custom' });
     }
+  }
+}
+
+// ── Merge backend-discovered games into the catalogue ───────────────────────
+
+export function mergeBackendGames(backendGames: GameInfo[]): void {
+  for (const bg of backendGames) {
+    if (GAMES.some((g) => g.gameType === bg.id)) continue; // already present (e.g. custom)
+
+    const nextId = Math.max(...GAMES.map((g) => g.id), -1) + 1;
+    const color = bg.themeColor || '#C9A84C';
+
+    GAMES.push({
+      id: nextId,
+      name: bg.name,
+      description: bg.description || 'A card game.',
+      emoji: bg.emoji || '🎲',
+      accentColor: color,
+      accentColorRgb: hexToRgb(color),
+      playerCount: bg.playerCount || '2–6 players',
+      gameType: bg.id,
+      source: 'backend',
+    });
   }
 }
 
@@ -124,15 +120,13 @@ export function addGame(
     accentColorRgb: color.rgb,
     playerCount: '2–6 players',
     gameType,
+    source: 'custom',
   };
 
   GAMES.push(game);
 
-  // Persist only custom (non-built-in) games
-  const customGames = GAMES.filter(
-    (g) => !BUILT_IN_GAMES.some((b) => b.gameType === g.gameType),
-  );
-  saveCustomGames(customGames);
+  // Persist custom games to localStorage (don't persist backend games)
+  saveCustomGames(GAMES.filter((g) => g.source === 'custom'));
 
   return game;
 }

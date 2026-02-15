@@ -51,8 +51,17 @@ class ActionResponse(BaseModel):
     message: str = ""
 
 
+class GameInfoResponse(BaseModel):
+    id: str
+    name: str
+    description: str = ""
+    emoji: str = "🎲"
+    themeColor: str = "#C9A84C"
+    playerCount: str = "2–6 players"
+
+
 class AvailableGamesResponse(BaseModel):
-    games: List[Dict[str, str]]   # [{"id": "exploding_kittens", "name": "Exploding Kittens"}]
+    games: List[GameInfoResponse]
 
 
 # ── Game generation (AI) ─────────────────────────────────────────────────────

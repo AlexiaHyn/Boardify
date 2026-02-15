@@ -68,6 +68,7 @@ def _parse_card_definitions(raw: List[Dict]) -> List[CardDefinition]:
             isPlayable=d.get("isPlayable", True),
             isReaction=d.get("isReaction", False),
             count=d.get("count", 1),
+            imageUrl=d.get("imageUrl"),
             metadata=d.get("metadata", {}),
         ))
     return defs
@@ -118,6 +119,7 @@ def build_deck_from_definitions(
                 effects=defn.effects,
                 isPlayable=defn.isPlayable,
                 isReaction=defn.isReaction,
+                imageUrl=defn.imageUrl,
                 metadata=defn.metadata.copy(),
             ))
     return deck
@@ -131,7 +133,17 @@ def list_available_games() -> List[Dict[str, str]]:
         try:
             # Explicitly use UTF-8 encoding to handle emoji characters
             data = json.loads(path.read_text(encoding='utf-8'))
-            result.append({"id": path.stem, "name": data.get("name", path.stem)})
+            rules = data.get("rules", {})
+            min_p = rules.get("minPlayers", 2)
+            max_p = rules.get("maxPlayers", 6)
+            result.append({
+                "id": path.stem,
+                "name": data.get("name", path.stem),
+                "description": data.get("description", ""),
+                "emoji": data.get("backgroundEmoji", "🎲"),
+                "themeColor": data.get("themeColor", "#C9A84C"),
+                "playerCount": f"{min_p}\u2013{max_p} players",
+            })
         except Exception as e:
             # Log the error but continue
             print(f"Warning: Failed to load game {path.stem}: {type(e).__name__}: {e}")

@@ -4,7 +4,7 @@
   "description": "Be the first player to get rid of all your cards! Match by color or number, and don't forget to shout UNO when you're down to one card!",
   "version": "1.0.0",
   "themeColor": "#E8232A",
-  "backgroundEmoji": "\ud83c\udfb4",
+  "backgroundEmoji": "🎴",
   "rules": {
     "minPlayers": 2,
     "maxPlayers": 10,
@@ -37,7 +37,7 @@
         "id": "color_match",
         "name": "Color Match",
         "trigger": "on_play",
-        "description": "You must play a card that matches the current color, number, or action type \u2014 or play a Wild.",
+        "description": "You must play a card that matches the current color, number, or action type — or play a Wild.",
         "metadata": {}
       },
       {
@@ -84,11 +84,11 @@
       "blue"
     ],
     "colorEmojis": {
-      "red": "\ud83d\udd34",
-      "yellow": "\ud83d\udfe1",
-      "green": "\ud83d\udfe2",
-      "blue": "\ud83d\udd35",
-      "wild": "\ud83c\udf08"
+      "red": "🔴",
+      "yellow": "🟡",
+      "green": "🟢",
+      "blue": "🔵",
+      "wild": "🌈"
     },
     "cardColorMap": {
       "field": "color",
@@ -140,7 +140,7 @@
       "name": "Red 0",
       "type": "number",
       "subtype": "number",
-      "emoji": "0\ufe0f\u20e3",
+      "emoji": "0️⃣",
       "description": "Play on any red card or any 0.",
       "count": 1,
       "effects": [
@@ -160,14 +160,15 @@
         "color": "red",
         "number": 0,
         "points": 0
-      }
+      },
+      "imageUrl": "/static/cards/uno/red_0.jpg"
     },
     {
       "id": "red_1",
       "name": "Red 1",
       "type": "number",
       "subtype": "number",
-      "emoji": "1\ufe0f\u20e3",
+      "emoji": "1️⃣",
       "description": "Play on any red card or any 1.",
       "count": 2,
       "effects": [
@@ -187,14 +188,15 @@
         "color": "red",
         "number": 1,
         "points": 1
-      }
+      },
+      "imageUrl": "/static/cards/uno/red_1.jpg"
     },
     {
       "id": "red_2",
       "name": "Red 2",
       "type": "number",
       "subtype": "number",
-      "emoji": "2\ufe0f\u20e3",
+      "emoji": "2️⃣",
       "description": "Play on any red card or any 2.",
       "count": 2,
       "effects": [
@@ -214,14 +216,15 @@
         "color": "red",
         "number": 2,
         "points": 2
-      }
+      },
+      "imageUrl": "/static/cards/uno/red_2.jpg"
     },
     {
       "id": "red_3",
       "name": "Red 3",
       "type": "number",
       "subtype": "number",
-      "emoji": "3\ufe0f\u20e3",
+      "emoji": "3️⃣",
       "description": "Play on any red card or any 3.",
       "count": 2,
       "effects": [
@@ -241,14 +244,15 @@
         "color": "red",
         "number": 3,
         "points": 3
-      }
+      },
+      "imageUrl": "/static/cards/uno/red_3.jpg"
     },
     {
       "id": "red_4",
       "name": "Red 4",
       "type": "number",
       "subtype": "number",
-      "emoji": "4\ufe0f\u20e3",
+      "emoji": "4️⃣",
       "description": "Play on any red card or any 4.",
       "count": 2,
       "effects": [
@@ -268,14 +272,15 @@
         "color": "red",
         "number": 4,
         "points": 4
-      }
+      },
+      "imageUrl": "/static/cards/uno/red_4.jpg"
     },
     {
       "id": "red_5",
       "name": "Red 5",
       "type": "number",
       "subtype": "number",
-      "emoji": "5\ufe0f\u20e3",
+      "emoji": "5️⃣",
       "description": "Play on any red card or any 5.",
       "count": 2,
       "effects": [
@@ -295,14 +300,15 @@
         "color": "red",
         "number": 5,
         "points": 5
-      }
+      },
+      "imageUrl": "/static/cards/uno/red_5.jpg"
     },
     {
       "id": "red_6",
       "name": "Red 6",
       "type": "number",
       "subtype": "number",
-      "emoji": "6\ufe0f\u20e3",
+      "emoji": "6️⃣",
       "description": "Play on any red card or any 6.",
       "count": 2,
       "effects": [
@@ -322,14 +328,15 @@
         "color": "red",
         "number": 6,
         "points": 6
-      }
+      },
+      "imageUrl": "/static/cards/uno/red_6.jpg"
     },
     {
       "id": "red_7",
       "name": "Red 7",
       "type": "number",
       "subtype": "number",
-      "emoji": "7\ufe0f\u20e3",
+      "emoji": "7️⃣",
       "description": "Play on any red card or any 7.",
       "count": 2,
       "effects": [
@@ -349,14 +356,15 @@
         "color": "red",
         "number": 7,
         "points": 7
-      }
+      },
+      "imageUrl": "/static/cards/uno/red_7.jpg"
     },
     {
       "id": "red_8",
       "name": "Red 8",
       "type": "number",
       "subtype": "number",
-      "emoji": "8\ufe0f\u20e3",
+      "emoji": "8️⃣",
       "description": "Play on any red card or any 8.",
       "count": 2,
       "effects": [
@@ -376,14 +384,15 @@
         "color": "red",
         "number": 8,
         "points": 8
-      }
+      },
+      "imageUrl": "/static/cards/uno/red_8.jpg"
     },
     {
       "id": "red_9",
       "name": "Red 9",
       "type": "number",
       "subtype": "number",
-      "emoji": "9\ufe0f\u20e3",
+      "emoji": "9️⃣",
       "description": "Play on any red card or any 9.",
       "count": 2,
       "effects": [
@@ -403,14 +412,15 @@
         "color": "red",
         "number": 9,
         "points": 9
-      }
+      },
+      "imageUrl": "/static/cards/uno/red_9.jpg"
     },
     {
       "id": "red_skip",
       "name": "Red Skip",
       "type": "action",
       "subtype": "skip",
-      "emoji": "\ud83d\udeab",
+      "emoji": "🚫",
       "description": "The next player loses their turn.",
       "count": 2,
       "effects": [
@@ -429,14 +439,15 @@
       "metadata": {
         "color": "red",
         "points": 20
-      }
+      },
+      "imageUrl": "/static/cards/uno/red_skip.jpg"
     },
     {
       "id": "red_reverse",
       "name": "Red Reverse",
       "type": "action",
       "subtype": "reverse",
-      "emoji": "\ud83d\udd04",
+      "emoji": "🔄",
       "description": "Reverse the order of play.",
       "count": 2,
       "effects": [
@@ -454,14 +465,15 @@
       "metadata": {
         "color": "red",
         "points": 20
-      }
+      },
+      "imageUrl": "/static/cards/uno/red_reverse.jpg"
     },
     {
       "id": "red_draw2",
       "name": "Red Draw 2",
       "type": "action",
       "subtype": "draw2",
-      "emoji": "\u2795",
+      "emoji": "➕",
       "description": "Next player draws 2 cards and loses their turn (unless they stack another Draw 2).",
       "count": 2,
       "effects": [
@@ -480,14 +492,15 @@
       "metadata": {
         "color": "red",
         "points": 20
-      }
+      },
+      "imageUrl": "/static/cards/uno/red_draw_2.jpg"
     },
     {
       "id": "yellow_0",
       "name": "Yellow 0",
       "type": "number",
       "subtype": "number",
-      "emoji": "0\ufe0f\u20e3",
+      "emoji": "0️⃣",
       "description": "Play on any yellow card or any 0.",
       "count": 1,
       "effects": [
@@ -507,14 +520,15 @@
         "color": "yellow",
         "number": 0,
         "points": 0
-      }
+      },
+      "imageUrl": "/static/cards/uno/yellow_0.jpg"
     },
     {
       "id": "yellow_1",
       "name": "Yellow 1",
       "type": "number",
       "subtype": "number",
-      "emoji": "1\ufe0f\u20e3",
+      "emoji": "1️⃣",
       "description": "Play on any yellow card or any 1.",
       "count": 2,
       "effects": [
@@ -534,14 +548,15 @@
         "color": "yellow",
         "number": 1,
         "points": 1
-      }
+      },
+      "imageUrl": "/static/cards/uno/yellow_1.jpg"
     },
     {
       "id": "yellow_2",
       "name": "Yellow 2",
       "type": "number",
       "subtype": "number",
-      "emoji": "2\ufe0f\u20e3",
+      "emoji": "2️⃣",
       "description": "Play on any yellow card or any 2.",
       "count": 2,
       "effects": [
@@ -561,14 +576,15 @@
         "color": "yellow",
         "number": 2,
         "points": 2
-      }
+      },
+      "imageUrl": "/static/cards/uno/yellow_2.jpg"
     },
     {
       "id": "yellow_3",
       "name": "Yellow 3",
       "type": "number",
       "subtype": "number",
-      "emoji": "3\ufe0f\u20e3",
+      "emoji": "3️⃣",
       "description": "Play on any yellow card or any 3.",
       "count": 2,
       "effects": [
@@ -588,14 +604,15 @@
         "color": "yellow",
         "number": 3,
         "points": 3
-      }
+      },
+      "imageUrl": "/static/cards/uno/yellow_3.jpg"
     },
     {
       "id": "yellow_4",
       "name": "Yellow 4",
       "type": "number",
       "subtype": "number",
-      "emoji": "4\ufe0f\u20e3",
+      "emoji": "4️⃣",
       "description": "Play on any yellow card or any 4.",
       "count": 2,
       "effects": [
@@ -615,14 +632,15 @@
         "color": "yellow",
         "number": 4,
         "points": 4
-      }
+      },
+      "imageUrl": "/static/cards/uno/yellow_4.jpg"
     },
     {
       "id": "yellow_5",
       "name": "Yellow 5",
       "type": "number",
       "subtype": "number",
-      "emoji": "5\ufe0f\u20e3",
+      "emoji": "5️⃣",
       "description": "Play on any yellow card or any 5.",
       "count": 2,
       "effects": [
@@ -642,14 +660,15 @@
         "color": "yellow",
         "number": 5,
         "points": 5
-      }
+      },
+      "imageUrl": "/static/cards/uno/yellow_5.jpg"
     },
     {
       "id": "yellow_6",
       "name": "Yellow 6",
       "type": "number",
       "subtype": "number",
-      "emoji": "6\ufe0f\u20e3",
+      "emoji": "6️⃣",
       "description": "Play on any yellow card or any 6.",
       "count": 2,
       "effects": [
@@ -669,14 +688,15 @@
         "color": "yellow",
         "number": 6,
         "points": 6
-      }
+      },
+      "imageUrl": "/static/cards/uno/yellow_6.jpg"
     },
     {
       "id": "yellow_7",
       "name": "Yellow 7",
       "type": "number",
       "subtype": "number",
-      "emoji": "7\ufe0f\u20e3",
+      "emoji": "7️⃣",
       "description": "Play on any yellow card or any 7.",
       "count": 2,
       "effects": [
@@ -696,14 +716,15 @@
         "color": "yellow",
         "number": 7,
         "points": 7
-      }
+      },
+      "imageUrl": "/static/cards/uno/yellow_7.jpg"
     },
     {
       "id": "yellow_8",
       "name": "Yellow 8",
       "type": "number",
       "subtype": "number",
-      "emoji": "8\ufe0f\u20e3",
+      "emoji": "8️⃣",
       "description": "Play on any yellow card or any 8.",
       "count": 2,
       "effects": [
@@ -723,14 +744,15 @@
         "color": "yellow",
         "number": 8,
         "points": 8
-      }
+      },
+      "imageUrl": "/static/cards/uno/yellow_8.jpg"
     },
     {
       "id": "yellow_9",
       "name": "Yellow 9",
       "type": "number",
       "subtype": "number",
-      "emoji": "9\ufe0f\u20e3",
+      "emoji": "9️⃣",
       "description": "Play on any yellow card or any 9.",
       "count": 2,
       "effects": [
@@ -750,14 +772,15 @@
         "color": "yellow",
         "number": 9,
         "points": 9
-      }
+      },
+      "imageUrl": "/static/cards/uno/yellow_9.jpg"
     },
     {
       "id": "yellow_skip",
       "name": "Yellow Skip",
       "type": "action",
       "subtype": "skip",
-      "emoji": "\ud83d\udeab",
+      "emoji": "🚫",
       "description": "The next player loses their turn.",
       "count": 2,
       "effects": [
@@ -776,14 +799,15 @@
       "metadata": {
         "color": "yellow",
         "points": 20
-      }
+      },
+      "imageUrl": "/static/cards/uno/yellow_skip.jpg"
     },
     {
       "id": "yellow_reverse",
       "name": "Yellow Reverse",
       "type": "action",
       "subtype": "reverse",
-      "emoji": "\ud83d\udd04",
+      "emoji": "🔄",
       "description": "Reverse the order of play.",
       "count": 2,
       "effects": [
@@ -801,14 +825,15 @@
       "metadata": {
         "color": "yellow",
         "points": 20
-      }
+      },
+      "imageUrl": "/static/cards/uno/yellow_reverse.jpg"
     },
     {
       "id": "yellow_draw2",
       "name": "Yellow Draw 2",
       "type": "action",
       "subtype": "draw2",
-      "emoji": "\u2795",
+      "emoji": "➕",
       "description": "Next player draws 2 cards and loses their turn.",
       "count": 2,
       "effects": [
@@ -827,14 +852,15 @@
       "metadata": {
         "color": "yellow",
         "points": 20
-      }
+      },
+      "imageUrl": "/static/cards/uno/yellow_draw_2.jpg"
     },
     {
       "id": "green_0",
       "name": "Green 0",
       "type": "number",
       "subtype": "number",
-      "emoji": "0\ufe0f\u20e3",
+      "emoji": "0️⃣",
       "description": "Play on any green card or any 0.",
       "count": 1,
       "effects": [
@@ -854,14 +880,15 @@
         "color": "green",
         "number": 0,
         "points": 0
-      }
+      },
+      "imageUrl": "/static/cards/uno/green_0.jpg"
     },
     {
       "id": "green_1",
       "name": "Green 1",
       "type": "number",
       "subtype": "number",
-      "emoji": "1\ufe0f\u20e3",
+      "emoji": "1️⃣",
       "description": "Play on any green card or any 1.",
       "count": 2,
       "effects": [
@@ -881,14 +908,15 @@
         "color": "green",
         "number": 1,
         "points": 1
-      }
+      },
+      "imageUrl": "/static/cards/uno/green_1.jpg"
     },
     {
       "id": "green_2",
       "name": "Green 2",
       "type": "number",
       "subtype": "number",
-      "emoji": "2\ufe0f\u20e3",
+      "emoji": "2️⃣",
       "description": "Play on any green card or any 2.",
       "count": 2,
       "effects": [
@@ -908,14 +936,15 @@
         "color": "green",
         "number": 2,
         "points": 2
-      }
+      },
+      "imageUrl": "/static/cards/uno/green_2.jpg"
     },
     {
       "id": "green_3",
       "name": "Green 3",
       "type": "number",
       "subtype": "number",
-      "emoji": "3\ufe0f\u20e3",
+      "emoji": "3️⃣",
       "description": "Play on any green card or any 3.",
       "count": 2,
       "effects": [
@@ -935,14 +964,15 @@
         "color": "green",
         "number": 3,
         "points": 3
-      }
+      },
+      "imageUrl": "/static/cards/uno/green_3.jpg"
     },
     {
       "id": "green_4",
       "name": "Green 4",
       "type": "number",
       "subtype": "number",
-      "emoji": "4\ufe0f\u20e3",
+      "emoji": "4️⃣",
       "description": "Play on any green card or any 4.",
       "count": 2,
       "effects": [
@@ -962,14 +992,15 @@
         "color": "green",
         "number": 4,
         "points": 4
-      }
+      },
+      "imageUrl": "/static/cards/uno/green_4.jpg"
     },
     {
       "id": "green_5",
       "name": "Green 5",
       "type": "number",
       "subtype": "number",
-      "emoji": "5\ufe0f\u20e3",
+      "emoji": "5️⃣",
       "description": "Play on any green card or any 5.",
       "count": 2,
       "effects": [
@@ -989,14 +1020,15 @@
         "color": "green",
         "number": 5,
         "points": 5
-      }
+      },
+      "imageUrl": "/static/cards/uno/green_5.jpg"
     },
     {
       "id": "green_6",
       "name": "Green 6",
       "type": "number",
       "subtype": "number",
-      "emoji": "6\ufe0f\u20e3",
+      "emoji": "6️⃣",
       "description": "Play on any green card or any 6.",
       "count": 2,
       "effects": [
@@ -1016,14 +1048,15 @@
         "color": "green",
         "number": 6,
         "points": 6
-      }
+      },
+      "imageUrl": "/static/cards/uno/green_6.jpg"
     },
     {
       "id": "green_7",
       "name": "Green 7",
       "type": "number",
       "subtype": "number",
-      "emoji": "7\ufe0f\u20e3",
+      "emoji": "7️⃣",
       "description": "Play on any green card or any 7.",
       "count": 2,
       "effects": [
@@ -1043,14 +1076,15 @@
         "color": "green",
         "number": 7,
         "points": 7
-      }
+      },
+      "imageUrl": "/static/cards/uno/green_7.jpg"
     },
     {
       "id": "green_8",
       "name": "Green 8",
       "type": "number",
       "subtype": "number",
-      "emoji": "8\ufe0f\u20e3",
+      "emoji": "8️⃣",
       "description": "Play on any green card or any 8.",
       "count": 2,
       "effects": [
@@ -1070,14 +1104,15 @@
         "color": "green",
         "number": 8,
         "points": 8
-      }
+      },
+      "imageUrl": "/static/cards/uno/green_8.jpg"
     },
     {
       "id": "green_9",
       "name": "Green 9",
       "type": "number",
       "subtype": "number",
-      "emoji": "9\ufe0f\u20e3",
+      "emoji": "9️⃣",
       "description": "Play on any green card or any 9.",
       "count": 2,
       "effects": [
@@ -1097,14 +1132,15 @@
         "color": "green",
         "number": 9,
         "points": 9
-      }
+      },
+      "imageUrl": "/static/cards/uno/green_9.jpg"
     },
     {
       "id": "green_skip",
       "name": "Green Skip",
       "type": "action",
       "subtype": "skip",
-      "emoji": "\ud83d\udeab",
+      "emoji": "🚫",
       "description": "The next player loses their turn.",
       "count": 2,
       "effects": [
@@ -1123,14 +1159,15 @@
       "metadata": {
         "color": "green",
         "points": 20
-      }
+      },
+      "imageUrl": "/static/cards/uno/green_skip.jpg"
     },
     {
       "id": "green_reverse",
       "name": "Green Reverse",
       "type": "action",
       "subtype": "reverse",
-      "emoji": "\ud83d\udd04",
+      "emoji": "🔄",
       "description": "Reverse the order of play.",
       "count": 2,
       "effects": [
@@ -1148,14 +1185,15 @@
       "metadata": {
         "color": "green",
         "points": 20
-      }
+      },
+      "imageUrl": "/static/cards/uno/green_reverse.jpg"
     },
     {
       "id": "green_draw2",
       "name": "Green Draw 2",
       "type": "action",
       "subtype": "draw2",
-      "emoji": "\u2795",
+      "emoji": "➕",
       "description": "Next player draws 2 cards and loses their turn.",
       "count": 2,
       "effects": [
@@ -1174,14 +1212,15 @@
       "metadata": {
         "color": "green",
         "points": 20
-      }
+      },
+      "imageUrl": "/static/cards/uno/green_draw_2.jpg"
     },
     {
       "id": "blue_0",
       "name": "Blue 0",
       "type": "number",
       "subtype": "number",
-      "emoji": "0\ufe0f\u20e3",
+      "emoji": "0️⃣",
       "description": "Play on any blue card or any 0.",
       "count": 1,
       "effects": [
@@ -1201,14 +1240,15 @@
         "color": "blue",
         "number": 0,
         "points": 0
-      }
+      },
+      "imageUrl": "/static/cards/uno/blue_0.jpg"
     },
     {
       "id": "blue_1",
       "name": "Blue 1",
       "type": "number",
       "subtype": "number",
-      "emoji": "1\ufe0f\u20e3",
+      "emoji": "1️⃣",
       "description": "Play on any blue card or any 1.",
       "count": 2,
       "effects": [
@@ -1228,14 +1268,15 @@
         "color": "blue",
         "number": 1,
         "points": 1
-      }
+      },
+      "imageUrl": "/static/cards/uno/blue_1.jpg"
     },
     {
       "id": "blue_2",
       "name": "Blue 2",
       "type": "number",
       "subtype": "number",
-      "emoji": "2\ufe0f\u20e3",
+      "emoji": "2️⃣",
       "description": "Play on any blue card or any 2.",
       "count": 2,
       "effects": [
@@ -1255,14 +1296,15 @@
         "color": "blue",
         "number": 2,
         "points": 2
-      }
+      },
+      "imageUrl": "/static/cards/uno/blue_2.jpg"
     },
     {
       "id": "blue_3",
       "name": "Blue 3",
       "type": "number",
       "subtype": "number",
-      "emoji": "3\ufe0f\u20e3",
+      "emoji": "3️⃣",
       "description": "Play on any blue card or any 3.",
       "count": 2,
       "effects": [
@@ -1282,14 +1324,15 @@
         "color": "blue",
         "number": 3,
         "points": 3
-      }
+      },
+      "imageUrl": "/static/cards/uno/blue_3.jpg"
     },
     {
       "id": "blue_4",
       "name": "Blue 4",
       "type": "number",
       "subtype": "number",
-      "emoji": "4\ufe0f\u20e3",
+      "emoji": "4️⃣",
       "description": "Play on any blue card or any 4.",
       "count": 2,
       "effects": [
@@ -1309,14 +1352,15 @@
         "color": "blue",
         "number": 4,
         "points": 4
-      }
+      },
+      "imageUrl": "/static/cards/uno/blue_4.jpg"
     },
     {
       "id": "blue_5",
       "name": "Blue 5",
       "type": "number",
       "subtype": "number",
-      "emoji": "5\ufe0f\u20e3",
+      "emoji": "5️⃣",
       "description": "Play on any blue card or any 5.",
       "count": 2,
       "effects": [
@@ -1336,14 +1380,15 @@
         "color": "blue",
         "number": 5,
         "points": 5
-      }
+      },
+      "imageUrl": "/static/cards/uno/blue_5.jpg"
     },
     {
       "id": "blue_6",
       "name": "Blue 6",
       "type": "number",
       "subtype": "number",
-      "emoji": "6\ufe0f\u20e3",
+      "emoji": "6️⃣",
       "description": "Play on any blue card or any 6.",
       "count": 2,
       "effects": [
@@ -1363,14 +1408,15 @@
         "color": "blue",
         "number": 6,
         "points": 6
-      }
+      },
+      "imageUrl": "/static/cards/uno/blue_6.jpg"
     },
     {
       "id": "blue_7",
       "name": "Blue 7",
       "type": "number",
       "subtype": "number",
-      "emoji": "7\ufe0f\u20e3",
+      "emoji": "7️⃣",
       "description": "Play on any blue card or any 7.",
       "count": 2,
       "effects": [
@@ -1390,14 +1436,15 @@
         "color": "blue",
         "number": 7,
         "points": 7
-      }
+      },
+      "imageUrl": "/static/cards/uno/blue_7.jpg"
     },
     {
       "id": "blue_8",
       "name": "Blue 8",
       "type": "number",
       "subtype": "number",
-      "emoji": "8\ufe0f\u20e3",
+      "emoji": "8️⃣",
       "description": "Play on any blue card or any 8.",
       "count": 2,
       "effects": [
@@ -1417,14 +1464,15 @@
         "color": "blue",
         "number": 8,
         "points": 8
-      }
+      },
+      "imageUrl": "/static/cards/uno/blue_8.jpg"
     },
     {
       "id": "blue_9",
       "name": "Blue 9",
       "type": "number",
       "subtype": "number",
-      "emoji": "9\ufe0f\u20e3",
+      "emoji": "9️⃣",
       "description": "Play on any blue card or any 9.",
       "count": 2,
       "effects": [
@@ -1444,14 +1492,15 @@
         "color": "blue",
         "number": 9,
         "points": 9
-      }
+      },
+      "imageUrl": "/static/cards/uno/blue_9.jpg"
     },
     {
       "id": "blue_skip",
       "name": "Blue Skip",
       "type": "action",
       "subtype": "skip",
-      "emoji": "\ud83d\udeab",
+      "emoji": "🚫",
       "description": "The next player loses their turn.",
       "count": 2,
       "effects": [
@@ -1470,14 +1519,15 @@
       "metadata": {
         "color": "blue",
         "points": 20
-      }
+      },
+      "imageUrl": "/static/cards/uno/blue_skip.jpg"
     },
     {
       "id": "blue_reverse",
       "name": "Blue Reverse",
       "type": "action",
       "subtype": "reverse",
-      "emoji": "\ud83d\udd04",
+      "emoji": "🔄",
       "description": "Reverse the order of play.",
       "count": 2,
       "effects": [
@@ -1495,14 +1545,15 @@
       "metadata": {
         "color": "blue",
         "points": 20
-      }
+      },
+      "imageUrl": "/static/cards/uno/blue_reverse.jpg"
     },
     {
       "id": "blue_draw2",
       "name": "Blue Draw 2",
       "type": "action",
       "subtype": "draw2",
-      "emoji": "\u2795",
+      "emoji": "➕",
       "description": "Next player draws 2 cards and loses their turn.",
       "count": 2,
       "effects": [
@@ -1521,14 +1572,15 @@
       "metadata": {
         "color": "blue",
         "points": 20
-      }
+      },
+      "imageUrl": "/static/cards/uno/blue_draw_2.jpg"
     },
     {
       "id": "wild",
       "name": "Wild",
       "type": "wild",
       "subtype": "wild",
-      "emoji": "\ud83c\udf08",
+      "emoji": "🌈",
       "description": "Play on any card. Choose any color to continue play.",
       "count": 4,
       "effects": [
@@ -1547,14 +1599,15 @@
         "color": "wild",
         "points": 50,
         "requiresColorChoice": true
-      }
+      },
+      "imageUrl": "/static/cards/uno/wild.jpg"
     },
     {
       "id": "wild_draw4",
       "name": "Wild Draw 4",
       "type": "wild",
       "subtype": "wild_draw4",
-      "emoji": "\ud83c\udf08",
+      "emoji": "🌈",
       "description": "Choose any color. The next player draws 4 cards and loses their turn. Only legal if you have no cards matching the current color (challengeable!).",
       "count": 4,
       "effects": [
@@ -1575,22 +1628,23 @@
         "points": 50,
         "requiresColorChoice": true,
         "challengeable": true
-      }
+      },
+      "imageUrl": "/static/cards/uno/wild_draw_4.jpg"
     }
   ],
   "ui": {
     "tableBackground": "#166534",
-    "cardBack": "\ud83c\udfb4",
+    "cardBack": "🎴",
     "deckLabel": "Draw Pile",
     "discardLabel": "Discard",
     "turnPrompt": "Play a matching card or draw.",
-    "waitPrompt": "Waiting for {playerName}\u2026",
-    "winMessage": "\ud83c\udf89 {playerName} shouts UNO and wins!",
-    "eliminatedMessage": "\ud83d\ude14 {playerName} is out.",
+    "waitPrompt": "Waiting for {playerName}…",
+    "winMessage": "🎉 {playerName} shouts UNO and wins!",
+    "eliminatedMessage": "😔 {playerName} is out.",
     "actionLabels": {
       "play_card": "Play",
       "draw_card": "Draw Card",
-      "call_uno": "UNO! \ud83d\udde3\ufe0f",
+      "call_uno": "UNO! 🗣️",
       "choose_color": "Choose Color",
       "challenge_draw4": "Challenge!"
     },
@@ -1598,28 +1652,28 @@
       "choose_color": "Choose a color to continue play",
       "stack_draw2": "You were hit with Draw 2! Stack another or draw {total}?",
       "challenge_draw4": "Challenge the Wild Draw 4? If they had a matching color, they draw 4 instead.",
-      "uno_call": "You're down to 1 card \u2014 say UNO!",
+      "uno_call": "You're down to 1 card — say UNO!",
       "uno_penalty": "{playerName} forgot to say UNO! They draw 2."
     },
     "colorPicker": {
       "red": {
         "label": "Red",
-        "emoji": "\ud83d\udd34",
+        "emoji": "🔴",
         "bg": "#dc2626"
       },
       "yellow": {
         "label": "Yellow",
-        "emoji": "\ud83d\udfe1",
+        "emoji": "🟡",
         "bg": "#ca8a04"
       },
       "green": {
         "label": "Green",
-        "emoji": "\ud83d\udfe2",
+        "emoji": "🟢",
         "bg": "#16a34a"
       },
       "blue": {
         "label": "Blue",
-        "emoji": "\ud83d\udd35",
+        "emoji": "🔵",
         "bg": "#2563eb"
       }
     }

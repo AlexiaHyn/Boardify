@@ -2,10 +2,10 @@
 Local orchestrator for AI game generation.
 
 Calls the deployed Modal functions:
-  research -> generate JSON -> validate -> generate plugin -> save & register
+  research -> generate JSON -> validate -> generate plugin -> generate card images -> save & register
 
 Retries on validation failure with error feedback, persists the final game
-JSON into /games and the plugin into /engines, and registers the plugin.
+JSON into /games and the plugin into /engines, card images into /static, and registers the plugin.
 """
 from __future__ import annotations
 
@@ -27,6 +27,7 @@ _MAX_RETRIES = 3
 _GAMES_DIR = Path(__file__).resolve().parent.parent / "games"
 _ENGINES_DIR = Path(__file__).resolve().parent / "engines"
 _PLUGIN_LOADER = _ENGINES_DIR / "plugin_loader.py"
+_STATIC_DIR = Path(__file__).resolve().parent.parent.parent / "static"
 
 # Progress callback type: (step, message) -> None
 ProgressFn = Callable[[str, str], None]
@@ -62,6 +63,62 @@ def _validate_plugin_syntax(code: str) -> Optional[str]:
         return None
     except SyntaxError as exc:
         return f"Line {exc.lineno}: {exc.msg}"
+
+
+def _generate_and_save_card_images(
+    game_id: str,
+    game_name: str,
+    game_data: Dict[str, Any],
+    emit: ProgressFn,
+) -> bool:
+    """
+    Generate card images via Flux on Modal and save them to static/.
+
+    Updates game_data in-place with imageUrl on each card definition.
+    Returns True on success, False on failure (non-fatal).
+    """
+    card_defs = game_data.get("cards", [])
+    if not card_defs:
+        return False
+
+    theme_color = game_data.get("themeColor", "#4F46E5")
+
+    try:
+        emit("images", f"Generating {len(card_defs)} card images with Flux ...")
+        logger.info("Starting card image generation for %s (%d cards)", game_id, len(card_defs))
+
+        gen_fn = _lookup("generate_card_images")
+        images: Dict[str, bytes] = gen_fn.remote(
+            game_name, card_defs, theme_color,
+        )
+
+        # Save images to static/cards/{game_id}/
+        cards_dir = _STATIC_DIR / "cards" / game_id
+        cards_dir.mkdir(parents=True, exist_ok=True)
+
+        saved = 0
+        for card_def in card_defs:
+            cid = card_def["id"]
+            img_bytes = images.get(cid)
+            if not img_bytes:
+                logger.warning("No image returned for card %s", cid)
+                continue
+
+            img_path = cards_dir / f"{cid}.jpg"
+            img_path.write_bytes(img_bytes)
+
+            # Set the imageUrl on the card definition (relative to static mount)
+            card_def["imageUrl"] = f"/static/cards/{game_id}/{cid}.jpg"
+            saved += 1
+
+        emit("images_done", f"Generated {saved}/{len(card_defs)} card images.")
+        logger.info("Saved %d/%d card images for %s", saved, len(card_defs), game_id)
+        return saved > 0
+
+    except Exception as exc:
+        emit("images_warn", f"Card image generation failed: {exc}. Continuing without images.")
+        logger.warning("Card image generation failed for %s: %s", game_id, exc)
+        return False
 
 
 def _register_plugin(game_id: str) -> None:
@@ -129,7 +186,7 @@ def generate_game(
         for attempt in range(1, _MAX_RETRIES + 1):
             emit(
                 "generate",
-                f"Generating game JSON (attempt {attempt}/{_MAX_RETRIES}) ...",
+                f"Generating game rule context...",
             )
             logger.info("Generation attempt %d/%d", attempt, _MAX_RETRIES)
 
@@ -201,8 +258,12 @@ def generate_game(
             emit("plugin_ok", "Plugin generated and validated!")
             logger.info("Plugin syntax OK for %s", game_id)
 
-        # ── Step 5: Save everything ───────────────────────────────────────
-        # Save game JSON
+        # ── Step 5: Generate card images via Flux ──────────────────────────
+        _generate_and_save_card_images(game_id, game_name, game_data, emit)
+        # game_data cards now have imageUrl fields (if generation succeeded)
+
+        # ── Step 6: Save everything ───────────────────────────────────────
+        # Save game JSON (includes imageUrl fields from step 5)
         out_path = _GAMES_DIR / f"{game_id}.json"
         emit("save", f"Saving {game_id}.json ...")
         _GAMES_DIR.mkdir(parents=True, exist_ok=True)

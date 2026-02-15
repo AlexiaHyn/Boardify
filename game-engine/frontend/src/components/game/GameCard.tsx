@@ -1,37 +1,58 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import type { Card } from '@/types/game';
+import { useState } from "react";
+import type { Card } from "@/types/game";
+import { API_BASE } from "@/lib/api";
 
 interface CardProps {
-  card: Card;
-  selected?: boolean;
-  selectable?: boolean;
-  disabled?: boolean;
-  small?: boolean;
-  faceDown?: boolean;
-  onClick?: (card: Card) => void;
-  onHover?: (card: Card | null) => void;
+	card: Card;
+	selected?: boolean;
+	selectable?: boolean;
+	disabled?: boolean;
+	small?: boolean;
+	faceDown?: boolean;
+	onClick?: (card: Card) => void;
+	onHover?: (card: Card | null) => void;
 }
 
 const TYPE_COLORS: Record<string, string> = {
-  action:   'from-[var(--color-teal)] to-[#1a4a40] border-[var(--color-teal-bright)]',
-  defense:  'from-[var(--color-verdant)] to-[#2a6b4a] border-[var(--color-verdant-bright)]',
-  reaction: 'from-[var(--color-crimson)] to-[var(--color-crimson-dim)] border-[var(--color-crimson-bright)]',
-  special:  'from-[var(--color-amber)] to-[#6a4a1a] border-[var(--color-amber-bright)]',
-  combo:    'from-[var(--color-rose)] to-[#5a2030] border-[var(--color-rose-bright)]',
-  hidden:   'from-[var(--color-surface-raised)] to-[var(--color-bg-deep)] border-[var(--color-border)]',
+	action: "from-[var(--color-teal)] to-[#1a4a40] border-[var(--color-teal-bright)]",
+	defense:
+		"from-[var(--color-verdant)] to-[#2a6b4a] border-[var(--color-verdant-bright)]",
+	reaction:
+		"from-[var(--color-crimson)] to-[var(--color-crimson-dim)] border-[var(--color-crimson-bright)]",
+	special:
+		"from-[var(--color-amber)] to-[#6a4a1a] border-[var(--color-amber-bright)]",
+	combo: "from-[var(--color-rose)] to-[#5a2030] border-[var(--color-rose-bright)]",
+	hidden: "from-[var(--color-surface-raised)] to-[var(--color-bg-deep)] border-[var(--color-border)]",
 };
 
+/** Border color only (used when card has an image background) */
+const TYPE_BORDERS: Record<string, string> = {
+	action: "border-[var(--color-teal-bright)]",
+	defense: "border-[var(--color-verdant-bright)]",
+	reaction: "border-[var(--color-crimson-bright)]",
+	special: "border-[var(--color-amber-bright)]",
+	combo: "border-[var(--color-rose-bright)]",
+	hidden: "border-[var(--color-border)]",
+};
+
+function cardImageUrl(card: Card): string | null {
+	if (!card.imageUrl) return null;
+	// Absolute URLs pass through; relative ones get the API base prepended
+	if (card.imageUrl.startsWith("http")) return card.imageUrl;
+	return `${API_BASE}${card.imageUrl}`;
+}
+
 export function GameCard({
-  card,
-  selected = false,
-  selectable = false,
-  disabled = false,
-  small = false,
-  faceDown = false,
-  onClick,
-  onHover,
+	card,
+	selected = false,
+	selectable = false,
+	disabled = false,
+	small = false,
+	faceDown = false,
+	onClick,
+	onHover,
 }: CardProps) {
   const [hovered, setHovered] = useState(false);
 
@@ -128,27 +149,50 @@ export function GameCard({
 
 // Tooltip card preview
 interface CardTooltipProps {
-  card: Card;
-  visible: boolean;
+	card: Card;
+	visible: boolean;
 }
 
 export function CardTooltip({ card, visible }: CardTooltipProps) {
-  if (!visible || card.type === 'hidden') return null;
-  return (
-    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 pointer-events-none">
-      <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-3 w-52 shadow-2xl">
-        <div className="flex items-center gap-2 mb-2">
-          <span className="text-2xl">{card.emoji}</span>
-          <div>
-            <p className="font-body font-bold text-sm text-[var(--color-cream)]">{card.name}</p>
-            <p className="font-body text-[var(--color-stone-dim)] text-xs capitalize">{card.type}</p>
-          </div>
-        </div>
-        <p className="font-body text-[var(--color-stone)] text-xs leading-relaxed">{card.description}</p>
-        {card.effects.map((e, i) => (
-          <p key={i} className="font-body text-[var(--color-teal-bright)] text-xs mt-1">&#8226; {e.description}</p>
-        ))}
-      </div>
-    </div>
-  );
+	if (!visible || card.type === "hidden") return null;
+	const imgSrc = cardImageUrl(card);
+	return (
+		<div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 pointer-events-none">
+			<div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-3 w-52 shadow-2xl">
+				{imgSrc && (
+					<div className="w-full h-24 rounded overflow-hidden mb-2">
+						{/* eslint-disable-next-line @next/next/no-img-element */}
+						<img
+							src={imgSrc}
+							alt={card.name}
+							className="w-full h-full object-cover"
+							draggable={false}
+						/>
+					</div>
+				)}
+				<div className="flex items-center gap-2 mb-2">
+					<span className="text-2xl">{card.emoji}</span>
+					<div>
+						<p className="font-body font-bold text-sm text-[var(--color-cream)]">
+							{card.name}
+						</p>
+						<p className="font-body text-[var(--color-stone-dim)] text-xs capitalize">
+							{card.type}
+						</p>
+					</div>
+				</div>
+				<p className="font-body text-[var(--color-stone)] text-xs leading-relaxed">
+					{card.description}
+				</p>
+				{card.effects.map((e, i) => (
+					<p
+						key={i}
+						className="font-body text-[var(--color-teal-bright)] text-xs mt-1"
+					>
+						&#8226; {e.description}
+					</p>
+				))}
+			</div>
+		</div>
+	);
 }
