@@ -11,6 +11,7 @@ import { PlayerHand } from '@/components/game/PlayerHand';
 import { GameLog } from '@/components/game/GameLog';
 import { PendingActionPanel, TargetSelector } from '@/components/game/PendingActionPanel';
 import { SeeTheFutureModal } from '@/components/game/SeeTheFutureModal';
+import { DefaultActionButtons } from '@/components/game/DefaultActionButtons';
 
 interface GameRoomProps {
   roomCode: string;
@@ -62,7 +63,7 @@ export function GameRoom({ roomCode, playerId, initialState }: GameRoomProps) {
 
   const { connected } = useGameSocket({ roomCode, playerId, onStateUpdate });
 
-  const { loading, error, drawCard, playCard, playCombo, playNope, selectTarget, insertExploding, giveCard, respondToPendingAction } =
+  const { loading, error, drawCard, playCard, playCombo, playNope, selectTarget, insertExploding, giveCard, respondToPendingAction, executeDefaultAction } =
     useGameActions({ roomCode, playerId, gameState });
 
   const localPlayer = gameState?.players.find((p) => p.id === playerId);
@@ -273,6 +274,15 @@ export function GameRoom({ roomCode, playerId, initialState }: GameRoomProps) {
         />
       )}
 
+      {/* Default action buttons (UNO call, catch UNO, etc.) */}
+      {gameState.availableActions && gameState.availableActions.length > 0 && (
+        <DefaultActionButtons
+          actions={gameState.availableActions}
+          onAction={executeDefaultAction}
+        />
+      )}
+
+      {/* Target selectors */}
       {interaction.mode === 'select_favor_target' && (
         <TargetSelector
           players={gameState.players}

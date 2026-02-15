@@ -94,6 +94,18 @@ export function useGameActions({ roomCode, playerId, gameState }: UseGameActions
     [dispatch, playerId],
   );
 
+  const executeDefaultAction = useCallback(
+    (actionType: string, targetPlayerId?: string) => {
+      // Execute a default game action (like call_uno, catch_uno, etc.)
+      dispatch({
+        type: actionType,
+        playerId,
+        targetPlayerId,
+      });
+    },
+    [dispatch, playerId],
+  );
+
   return {
     loading,
     error,
@@ -105,5 +117,6 @@ export function useGameActions({ roomCode, playerId, gameState }: UseGameActions
     insertExploding,
     giveCard,
     respondToPendingAction,
+    executeDefaultAction,
   };
 }

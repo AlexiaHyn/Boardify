@@ -48,7 +48,8 @@ def _load_json(game_type: str) -> Dict[str, Any]:
     path = GAMES_DIR / f"{game_type}.json"
     if not path.exists():
         raise FileNotFoundError(f"Game definition not found: {path}")
-    with open(path) as f:
+    # Explicitly use UTF-8 encoding to handle emoji characters
+    with open(path, encoding='utf-8') as f:
         return json.load(f)
 
 
@@ -128,10 +129,12 @@ def list_available_games() -> List[Dict[str, str]]:
     result = []
     for path in GAMES_DIR.glob("*.json"):
         try:
-            data = json.loads(path.read_text())
+            # Explicitly use UTF-8 encoding to handle emoji characters
+            data = json.loads(path.read_text(encoding='utf-8'))
             result.append({"id": path.stem, "name": data.get("name", path.stem)})
-        except Exception:
-            pass
+        except Exception as e:
+            # Log the error but continue
+            print(f"Warning: Failed to load game {path.stem}: {type(e).__name__}: {e}")
     return result
 
 

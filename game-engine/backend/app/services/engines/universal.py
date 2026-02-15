@@ -195,11 +195,32 @@ def _can_play_card(card: Card, state: GameState) -> bool:
     pending = state.metadata.get("pendingDraw", 0)
     stackable = cfg.get("stackableDraw", False)
     if pending > 0 and stackable:
-        draw_subtypes = {s for s in ("draw2", "draw4", "wild_draw4", "wild_draw")
-                         if s in [e.type for e in card.effects]}
-        effect_types = {e.type for e in card.effects}
-        if "draw" not in effect_types and "wild_draw" not in effect_types:
+        # Check if this card has draw effects
+        card_draw_effects = [e for e in card.effects if e.type in ("draw", "wild_draw")]
+        if not card_draw_effects:
+            # Not a draw card, can't play when there's a pending draw
             return False
+
+        # Get the draw value from the top card (to ensure matching draw amounts)
+        discard = _discard_zone(state)
+        if discard and discard.cards:
+            top_card = discard.cards[0]
+            top_draw_effects = [e for e in top_card.effects if e.type in ("draw", "wild_draw")]
+
+            if top_draw_effects and card_draw_effects:
+                # CardEffect is a Pydantic model, use getattr to access value
+                top_value = getattr(top_draw_effects[0], "value", 0)
+                card_value = getattr(card_draw_effects[0], "value", 0)
+
+                # Draw cards can only stack if they have the same value
+                # Draw 2 stacks on Draw 2, Wild Draw 4 stacks on Wild Draw 4
+                if top_value == card_value:
+                    return True  # Same draw value - allow stacking
+                else:
+                    return False  # Different draw values - can't stack
+
+        # If we can't determine top card, allow the draw card
+        return True
 
     # Color match
     if cfg.get("matchColor", False):
@@ -421,7 +442,10 @@ def _effect_self_draw(state, player, card, effect, action, triggered):
 def _effect_wild(state, player, card, effect, action, triggered):
     """Change active color. Triggers color picker if no color provided."""
     chosen = (action.metadata or {}).get("chosenColor") or (action.metadata or {}).get("color")
-    valid_colors = _cfg(state).get("colors", ["red", "yellow", "green", "blue"])
+    # Load valid colors from game config (required in JSON)
+    valid_colors = _cfg(state).get("colors", [])
+    if not valid_colors:
+        raise ValueError("Game config must define 'colors' array")
 
     if chosen in valid_colors:
         state.metadata["activeColor"] = chosen
@@ -444,7 +468,10 @@ def _effect_wild_draw(state, player, card, effect, action, triggered):
     """Wild + force next player to draw N. Triggers color picker first."""
     n = effect.get("value", 4)
     chosen = (action.metadata or {}).get("chosenColor") or (action.metadata or {}).get("color")
-    valid_colors = _cfg(state).get("colors", ["red", "yellow", "green", "blue"])
+    # Load valid colors from game config (required in JSON)
+    valid_colors = _cfg(state).get("colors", [])
+    if not valid_colors:
+        raise ValueError("Game config must define 'colors' array")
     stackable = _cfg(state).get("stackableDraw", False)
     allow_challenge = _cfg(state).get("allowWildDraw4Challenge", False)
 
@@ -762,6 +789,64 @@ def _check_win(state: GameState, player: Player, triggered: List[str]) -> bool:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Default Actions (Game-specific buttons)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def get_available_default_actions(state: GameState, player_id: str) -> List[Dict[str, Any]]:
+    """
+    Determine which default action buttons should be shown to a player.
+    Returns a list of available actions based on game config and current state.
+    """
+    available = []
+    cfg = _cfg(state)
+    default_actions = cfg.get("defaultActions", [])
+
+    if not default_actions:
+        return []
+
+    player = _get_player(state, player_id)
+    if not player or state.phase != "playing":
+        return []
+
+    uno_called_by = state.metadata.get("unoCalledBy", [])
+
+    for action_def in default_actions:
+        condition = action_def.get("showCondition")
+        should_show = False
+
+        if condition == "self_has_one_card":
+            # Show "Call UNO" button if player has 1 card and hasn't called
+            if len(player.hand.cards) == 1 and player.id not in uno_called_by:
+                should_show = True
+
+        elif condition == "opponent_has_one_card_no_call":
+            # Show "Catch UNO" button if any opponent has 1 card without calling
+            for other in state.players:
+                if (other.id != player_id and
+                    other.status == "active" and
+                    len(other.hand.cards) == 1 and
+                    other.id not in uno_called_by):
+                    should_show = True
+                    # Add target player info
+                    action_def = {**action_def, "targetPlayerId": other.id, "targetPlayerName": other.name}
+                    break
+
+        if should_show:
+            available.append({
+                "id": action_def.get("id"),
+                "label": action_def.get("label"),
+                "icon": action_def.get("icon"),
+                "description": action_def.get("description"),
+                "actionType": action_def.get("actionType"),
+                "color": action_def.get("color", "blue"),
+                "targetPlayerId": action_def.get("targetPlayerId"),
+                "targetPlayerName": action_def.get("targetPlayerName"),
+            })
+
+    return available
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Setup
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -959,12 +1044,12 @@ def _action_play_card(state, action) -> Tuple[bool, str, List[str]]:
             # Enter awaiting_response for color picker
             state.phase = "awaiting_response"
 
-            # Build choices from game config
+            # Build choices from game config (colors required in JSON)
             config = _cfg(state)
-            colors = config.get("colors", ["red", "yellow", "green", "blue"])
-            color_emojis = config.get("colorEmojis", {
-                "red": "🔴", "yellow": "🟡", "green": "🟢", "blue": "🔵"
-            })
+            colors = config.get("colors", [])
+            if not colors:
+                raise ValueError("Game config must define 'colors' array")
+            color_emojis = config.get("colorEmojis", {})
 
             choices = [
                 {
@@ -1072,7 +1157,10 @@ def _action_choose_color(state, action) -> Tuple[bool, str, List[str]]:
         return False, "Not your pending action", []
 
     chosen = (action.metadata or {}).get("color")
-    valid = _cfg(state).get("colors", ["red", "yellow", "green", "blue"])
+    # Load valid colors from game config (required in JSON)
+    valid = _cfg(state).get("colors", [])
+    if not valid:
+        return False, "Game config must define 'colors' array", []
     if chosen not in valid:
         return False, f"Invalid color: {chosen}", []
 

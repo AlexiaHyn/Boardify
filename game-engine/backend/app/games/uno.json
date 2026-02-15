@@ -92,7 +92,7 @@
     },
     "matchColor": true,
     "matchNumber": true,
-    "matchType": false,
+    "matchType": true,
     "wildAlwaysPlayable": true,
     "stackableDraw": true,
     "reverseEqualsSkipTwoPlayers": true,
@@ -101,7 +101,27 @@
       "wild",
       "wild_draw4"
     ],
-    "drawUntilPlayable": false
+    "drawUntilPlayable": false,
+    "defaultActions": [
+      {
+        "id": "call_uno",
+        "label": "UNO!",
+        "icon": "🗣️",
+        "description": "Call UNO when you have 1 card left",
+        "actionType": "call_uno",
+        "showCondition": "self_has_one_card",
+        "color": "yellow"
+      },
+      {
+        "id": "catch_uno",
+        "label": "Catch UNO",
+        "icon": "🚨",
+        "description": "Catch a player who forgot to call UNO",
+        "actionType": "catch_uno",
+        "showCondition": "opponent_has_one_card_no_call",
+        "color": "red"
+      }
+    ]
   },
   "cards": [
     {

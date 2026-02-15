@@ -80,10 +80,13 @@ async def broadcast(room_code: str, message: dict):
 
 
 async def broadcast_state(room_code: str):
-    """Send per-player state views (with masked hands) to all connected players."""
+    """Send per-player state views (with masked hands and available actions) to all connected players."""
     state = get_state(room_code)
     if state is None:
         return
+
+    # Import here to avoid circular dependency
+    from app.services.engines import universal
 
     for pid in list(ROOM_CONNECTIONS.get(room_code, {}).keys()):
         ws = ROOM_CONNECTIONS[room_code].get(pid)
@@ -91,6 +94,11 @@ async def broadcast_state(room_code: str):
             continue
 
         view = state.dict()
+
+        # Add available default actions for this specific player
+        available_actions = universal.get_available_default_actions(state, pid)
+        view["availableActions"] = available_actions
+
         # Mask other players' hands
         for p in view["players"]:
             if p["id"] != pid:
