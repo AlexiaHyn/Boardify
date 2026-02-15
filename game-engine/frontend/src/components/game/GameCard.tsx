@@ -15,12 +15,12 @@ interface CardProps {
 }
 
 const TYPE_COLORS: Record<string, string> = {
-  action:   'from-blue-600 to-blue-800 border-blue-400',
-  defense:  'from-green-600 to-green-800 border-green-400',
-  reaction: 'from-red-600 to-red-800 border-red-400',
-  special:  'from-orange-600 to-orange-800 border-orange-400',
-  combo:    'from-purple-600 to-purple-800 border-purple-400',
-  hidden:   'from-gray-700 to-gray-900 border-gray-600',
+  action:   'from-[var(--color-teal)] to-[#1a4a40] border-[var(--color-teal-bright)]',
+  defense:  'from-[var(--color-verdant)] to-[#2a6b4a] border-[var(--color-verdant-bright)]',
+  reaction: 'from-[var(--color-crimson)] to-[var(--color-crimson-dim)] border-[var(--color-crimson-bright)]',
+  special:  'from-[var(--color-amber)] to-[#6a4a1a] border-[var(--color-amber-bright)]',
+  combo:    'from-[var(--color-rose)] to-[#5a2030] border-[var(--color-rose-bright)]',
+  hidden:   'from-[var(--color-surface-raised)] to-[var(--color-bg-deep)] border-[var(--color-border)]',
 };
 
 export function GameCard({
@@ -54,7 +54,7 @@ export function GameCard({
 
   const cursor = disabled ? 'cursor-not-allowed' : selectable || onClick ? 'cursor-pointer' : 'cursor-default';
   const scale = hovered && !disabled && onClick ? 'scale-110 -translate-y-3' : '';
-  const ring = selected ? 'ring-4 ring-yellow-400 ring-offset-2 ring-offset-transparent' : '';
+  const ring = selected ? 'ring-4 ring-[var(--color-gold)] ring-offset-2 ring-offset-transparent' : '';
   const opacity = disabled ? 'opacity-40' : '';
 
   const w = small ? 'w-14' : 'w-24';
@@ -76,23 +76,23 @@ export function GameCard({
     >
       {isHidden ? (
         <div className="flex flex-col items-center justify-center h-full w-full">
-          <span className={emojiSm}>🂠</span>
-          {!small && <span className="text-gray-400 text-xs mt-1">Hidden</span>}
+          <span className={emojiSm}>&#127138;</span>
+          {!small && <span className="font-body text-[var(--color-stone-dim)] text-xs mt-1">Hidden</span>}
         </div>
       ) : (
         <>
           {/* Card type badge */}
           <div className="w-full flex justify-between items-start">
-            <span className={`${textSm} font-bold text-white drop-shadow leading-tight`}>
+            <span className={`${textSm} font-bold text-[var(--color-cream)] drop-shadow leading-tight font-body`}>
               {small ? '' : card.name}
             </span>
           </div>
 
           {/* Emoji */}
           <div className="flex flex-col items-center justify-center flex-1">
-            <span className={`${emojiSm} drop-shadow-lg`}>{card.emoji ?? '🃏'}</span>
+            <span className={`${emojiSm} drop-shadow-lg`}>{card.emoji ?? '&#127139;'}</span>
             {small && (
-              <span className="text-white text-xs mt-1 font-semibold text-center leading-tight px-1">
+              <span className="font-body text-[var(--color-cream)] text-xs mt-1 font-semibold text-center leading-tight px-1">
                 {card.name}
               </span>
             )}
@@ -101,13 +101,13 @@ export function GameCard({
           {/* Type label */}
           {!small && (
             <div className="w-full">
-              <span className="text-white/60 text-xs capitalize">{card.type}</span>
+              <span className="font-body text-[var(--color-cream-dim)] text-xs capitalize">{card.type}</span>
             </div>
           )}
 
           {/* Reaction badge */}
           {card.isReaction && !small && (
-            <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold shadow">
+            <div className="absolute -top-1 -right-1 bg-[var(--color-crimson)] text-[var(--color-cream)] text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold shadow">
               R
             </div>
           )}
@@ -127,17 +127,17 @@ export function CardTooltip({ card, visible }: CardTooltipProps) {
   if (!visible || card.type === 'hidden') return null;
   return (
     <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 pointer-events-none">
-      <div className="bg-gray-900 border border-gray-700 rounded-lg p-3 w-52 shadow-2xl">
+      <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-3 w-52 shadow-2xl">
         <div className="flex items-center gap-2 mb-2">
           <span className="text-2xl">{card.emoji}</span>
           <div>
-            <p className="text-white font-bold text-sm">{card.name}</p>
-            <p className="text-gray-400 text-xs capitalize">{card.type}</p>
+            <p className="font-body font-bold text-sm text-[var(--color-cream)]">{card.name}</p>
+            <p className="font-body text-[var(--color-stone-dim)] text-xs capitalize">{card.type}</p>
           </div>
         </div>
-        <p className="text-gray-300 text-xs leading-relaxed">{card.description}</p>
+        <p className="font-body text-[var(--color-stone)] text-xs leading-relaxed">{card.description}</p>
         {card.effects.map((e, i) => (
-          <p key={i} className="text-blue-300 text-xs mt-1">• {e.description}</p>
+          <p key={i} className="font-body text-[var(--color-teal-bright)] text-xs mt-1">&#8226; {e.description}</p>
         ))}
       </div>
     </div>
