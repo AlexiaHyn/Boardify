@@ -92,7 +92,11 @@ async def room_action(room_code: str, action: ActionRequest):
     if state.phase not in ("playing", "awaiting_response"):
         raise HTTPException(status_code=400, detail="Game is not in progress")
 
-    engine = game_loader._get_engine(state.gameType)
+    # Load universal engine + game plugin (plugin used inside apply_action)
+    engine, plugin = game_loader._get_engine_and_plugin(
+        state.gameType,
+        state.metadata.get("gameConfig", {})
+    )
     success, error, triggered = engine.apply_action(state, action)
     if not success:
         raise HTTPException(status_code=400, detail=error)

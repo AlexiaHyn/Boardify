@@ -167,6 +167,7 @@ def create_initial_state(game_type: str, room_code: str, host_name: str) -> tupl
             "hostId": host_id,
             "cardDefinitions": data["cards"],   # store raw defs for use during start_game
             "gameConfig": data.get("config", {}),
+            "gameId": game_type,  # For plugin system
         },
     )
     return state, host_id
@@ -199,10 +200,50 @@ def add_player_to_state(state: GameState, player_name: str) -> tuple[bool, str, 
     return True, "", player_id
 
 
+def _get_engine_and_plugin(game_type: str, game_config: Dict[str, Any]) -> tuple:
+    """
+    Load BOTH the universal engine AND game-specific plugin.
+
+    Returns:
+        (engine_module, plugin_instance or None)
+
+    The universal engine handles all core game mechanics (draw, skip, reverse, etc.)
+    The plugin provides game-specific customizations (color choice, UNO call, etc.)
+
+    Together they provide complete game functionality.
+
+    Note: Plugin instances are NOT stored in state metadata (not serializable).
+    They are loaded fresh each time they're needed.
+    """
+    import importlib
+
+    # 1. Always load universal engine
+    try:
+        universal = importlib.import_module("app.services.engines.universal")
+    except ModuleNotFoundError:
+        # Fallback to generic engine if universal missing
+        universal = importlib.import_module("app.services.engines.generic")
+
+    # 2. Try to load game-specific plugin
+    plugin = None
+    try:
+        # Use plugin_loader to get plugin instance
+        plugin_loader = importlib.import_module("app.services.engines.plugin_loader")
+        plugin = plugin_loader.get_plugin(game_type, game_config)
+        if plugin:
+            print(f"✓ Loaded plugin for {game_type}")
+    except Exception as e:
+        # No plugin available - that's fine, universal works standalone
+        print(f"No plugin for {game_type}: {e}")
+        pass
+
+    return universal, plugin
+
+
 def start_game(state: GameState) -> tuple[bool, str]:
     """
     Deal cards, set up zones, and transition to 'playing'.
-    The specific deal logic is delegated to the game's engine module.
+    Uses universal engine + game-specific plugin (if available).
     Returns (success, error_message).
     """
     if len(state.players) < state.rules.minPlayers:
@@ -210,26 +251,21 @@ def start_game(state: GameState) -> tuple[bool, str]:
     if state.phase != "lobby":
         return False, "Game already started"
 
-    # Import game-specific engine dynamically
-    engine = _get_engine(state.gameType)
+    # Load universal engine + plugin
+    engine, plugin = _get_engine_and_plugin(state.gameType, state.metadata.get("gameConfig", {}))
+
+    # DON'T store plugin in metadata (causes serialization errors!)
+    # Plugins are loaded fresh each time they're needed
+
+    # Setup game using universal engine
     engine.setup_game(state)
+
+    # Call plugin lifecycle hook if available
+    if plugin:
+        try:
+            plugin.on_game_start(state)
+        except Exception as e:
+            # Plugin error shouldn't break game startup
+            print(f"Warning: Plugin on_game_start failed: {e}")
+
     return True, ""
-
-
-def _get_engine(game_type: str):
-    """
-    Dynamically import the game-specific engine module.
-    Resolution order:
-      1. app.services.engines.<game_type>   (hand-written engine, e.g. exploding_kittens.py)
-      2. app.services.engines.universal      (data-driven engine — works for any JSON game)
-      3. app.services.engines.generic        (legacy minimal fallback)
-    """
-    import importlib
-    try:
-        return importlib.import_module(f"app.services.engines.{game_type}")
-    except ModuleNotFoundError:
-        pass
-    try:
-        return importlib.import_module("app.services.engines.universal")
-    except ModuleNotFoundError:
-        return importlib.import_module("app.services.engines.generic")

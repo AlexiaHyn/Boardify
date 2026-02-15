@@ -81,6 +81,19 @@ export function useGameActions({ roomCode, playerId, gameState }: UseGameActions
     [dispatch, playerId],
   );
 
+  const respondToPendingAction = useCallback(
+    (actionType: string, value: string) => {
+      // Send the response based on action type
+      // For choose_color, send color in metadata
+      if (actionType === 'choose_color') {
+        return dispatch({ type: actionType, playerId, metadata: { color: value } });
+      }
+      // Generic response with value
+      return dispatch({ type: actionType, playerId, metadata: { value } });
+    },
+    [dispatch, playerId],
+  );
+
   return {
     loading,
     error,
@@ -91,5 +104,6 @@ export function useGameActions({ roomCode, playerId, gameState }: UseGameActions
     selectTarget,
     insertExploding,
     giveCard,
+    respondToPendingAction,
   };
 }

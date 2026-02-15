@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { Card, GameState, Player } from '@/types/game';
+import type { Card, GameState, Player, Choice } from '@/types/game';
 import { GameCard } from './GameCard';
 
 interface PendingActionPanelProps {
@@ -11,6 +11,7 @@ interface PendingActionPanelProps {
   onGiveCard: (cardId: string) => void;
   onSelectTarget: (targetPlayerId: string) => void;
   onPlayNope?: (cardId: string) => void;
+  onRespond?: (actionType: string, value: string) => void;
 }
 
 export function PendingActionPanel({
@@ -20,10 +21,22 @@ export function PendingActionPanel({
   onGiveCard,
   onSelectTarget,
   onPlayNope,
+  onRespond,
 }: PendingActionPanelProps) {
   const pending = gameState.pendingAction;
   if (!pending) return null;
   if (gameState.phase !== 'awaiting_response') return null;
+
+  // Generic choice modal: for actions with choices array (color selection, etc.)
+  if (pending.choices && pending.choices.length > 0 && pending.playerId === localPlayerId && onRespond) {
+    return (
+      <ChoiceModal
+        choices={pending.choices}
+        prompt={pending.prompt || 'Make a choice'}
+        onChoose={(value) => onRespond(pending.type, value)}
+      />
+    );
+  }
 
   // Insert exploding: only the player who defused sees this
   if (pending.type === 'insert_exploding' && pending.playerId === localPlayerId) {
@@ -72,6 +85,41 @@ export function PendingActionPanel({
         <p className="text-white/60 text-sm mt-2">
           {pending.type === 'favor' ? 'Waiting for a player to give a card…' : 'Waiting for response…'}
         </p>
+      </div>
+    </div>
+  );
+}
+
+// ── Generic Choice Modal ──────────────────────────────────────────────────────
+
+function ChoiceModal({
+  choices,
+  prompt,
+  onChoose,
+}: {
+  choices: Choice[];
+  prompt: string;
+  onChoose: (value: string) => void;
+}) {
+  return (
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+      <div className="bg-gray-900 rounded-2xl p-8 border border-blue-500/50 text-center max-w-md w-full mx-4 shadow-2xl">
+        <h2 className="text-white font-bold text-xl mb-2">{prompt}</h2>
+
+        <div className="grid grid-cols-2 gap-4 mt-6">
+          {choices.map((choice) => (
+            <button
+              key={choice.value}
+              onClick={() => onChoose(choice.value)}
+              className="bg-gray-800 hover:bg-gray-700 border-2 border-white/20 hover:border-white/40 rounded-xl p-4 transition-all transform hover:scale-105"
+            >
+              {choice.icon && (
+                <div className="text-4xl mb-2">{choice.icon}</div>
+              )}
+              <div className="text-white font-semibold">{choice.label}</div>
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
