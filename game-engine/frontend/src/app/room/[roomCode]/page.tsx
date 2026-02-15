@@ -62,91 +62,148 @@ export default function RoomCodePage() {
   // Needs to join — inline join form
   if (needsJoin) {
     return (
-      <div className="min-h-screen bg-[#07070A] relative overflow-hidden flex items-center justify-center p-4">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-blue-600/[0.05] rounded-full blur-[120px] pointer-events-none" />
+      <main className="relative flex min-h-screen items-center justify-center px-4 py-12">
+        <div
+          className="pointer-events-none fixed inset-0 z-0"
+          style={{
+            background: `
+              radial-gradient(ellipse 50% 35% at 50% 35%, rgba(201, 168, 76, 0.04) 0%, transparent 70%),
+              linear-gradient(to bottom, var(--color-bg-deep), var(--color-bg-base))
+            `,
+          }}
+        />
 
         <div className="relative z-10 w-full max-w-md">
-          <div className="text-center mb-8">
-            <div className="text-6xl mb-4">🔗</div>
-            <h1 className="font-display text-3xl font-bold text-white">
-              Join Room
+          <div className="mb-8 text-center animate-fade-in-up">
+            <div className="mb-3 text-6xl">&#128279;</div>
+            <h1 className="font-display text-2xl font-semibold tracking-[0.08em] text-[var(--color-cream)]">
+              JOIN ROOM
             </h1>
-            <p className="text-zinc-500 mt-2">
+            <p className="font-body mt-2 text-sm text-[var(--color-stone)]">
               Room{' '}
-              <span className="font-mono text-zinc-400">{roomCode}</span>
+              <span className="font-mono text-[var(--color-gold)]">
+                {roomCode}
+              </span>
             </p>
           </div>
 
-          <div className="bg-white/[0.02] border border-white/[0.06] rounded-2xl p-6 space-y-4">
-            <div>
-              <label className="text-zinc-500 text-sm block mb-2">
-                Your Name
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. Player Two"
-                value={joinName}
-                onChange={(e) => setJoinName(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
-                maxLength={20}
-                className="w-full bg-white/[0.03] border border-white/[0.08] rounded-xl px-4 py-3 text-white placeholder:text-zinc-700 focus:outline-none focus:border-white/20 transition-colors"
-              />
+          <div className="section-panel animate-fade-in-up stagger-2">
+            <div className="section-panel-inner space-y-4">
+              <div>
+                <label className="form-label">Your Name</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Player Two"
+                  value={joinName}
+                  onChange={(e) => setJoinName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
+                  maxLength={20}
+                  className="form-input w-full"
+                />
+              </div>
+
+              {joinError && (
+                <div
+                  className="rounded-lg border px-4 py-3 font-body text-sm"
+                  style={{
+                    borderColor: 'var(--color-crimson-dim)',
+                    backgroundColor: 'rgba(184, 56, 75, 0.1)',
+                    color: 'var(--color-crimson-bright)',
+                  }}
+                >
+                  {joinError}
+                </div>
+              )}
+
+              <button
+                onClick={handleJoin}
+                disabled={joinLoading}
+                className="btn-press w-full rounded-lg bg-[var(--color-crimson)] py-3 font-display text-sm font-medium tracking-wider text-[var(--color-cream)] transition-all hover:bg-[var(--color-crimson-bright)] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {joinLoading ? 'JOINING\u2026' : 'JOIN GAME'}
+              </button>
+
+              <Link
+                href="/showcase"
+                className="block py-2 text-center font-body text-sm text-[var(--color-stone-dim)] transition-colors hover:text-[var(--color-stone)]"
+              >
+                &#8592; Browse Games
+              </Link>
             </div>
-
-            {joinError && (
-              <p className="text-red-400 text-sm bg-red-900/20 rounded-lg px-3 py-2">
-                {joinError}
-              </p>
-            )}
-
-            <button
-              onClick={handleJoin}
-              disabled={joinLoading}
-              className="w-full bg-blue-600 hover:bg-blue-500 font-bold py-4 rounded-2xl text-lg text-white transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-40"
-            >
-              {joinLoading ? 'Joining\u2026' : 'Join Game'}
-            </button>
-
-            <Link
-              href="/showcase"
-              className="block text-center text-zinc-600 hover:text-zinc-400 text-sm transition-colors py-2"
-            >
-              &#8592; Browse Games
-            </Link>
           </div>
         </div>
-      </div>
+      </main>
     );
   }
 
   // Error state
   if (error) {
     return (
-      <div className="min-h-screen bg-[#07070A] flex items-center justify-center">
+      <main className="flex min-h-screen items-center justify-center">
         <div className="text-center">
-          <div className="text-5xl mb-4">&#10060;</div>
-          <p className="text-white text-xl font-bold">Room not found</p>
-          <p className="text-zinc-500 text-sm mt-2">{error}</p>
+          <div className="mb-4 text-5xl">&#10060;</div>
+          <p className="font-display text-xl tracking-wide text-[var(--color-cream)]">
+            Room not found
+          </p>
+          <p className="font-body mt-2 text-sm text-[var(--color-stone-dim)]">
+            {error}
+          </p>
           <Link
             href="/showcase"
-            className="mt-6 inline-block bg-blue-600 hover:bg-blue-500 text-white font-semibold px-6 py-3 rounded-xl transition-colors"
+            className="btn-press mt-6 inline-block rounded-lg bg-[var(--color-crimson)] px-6 py-3 font-display text-xs font-medium tracking-wider text-[var(--color-cream)]"
           >
-            Browse Games
+            BROWSE GAMES
           </Link>
         </div>
-      </div>
+      </main>
     );
   }
 
   // Loading state
   if (!playerId) {
     return (
-      <div className="min-h-screen bg-[#07070A] flex items-center justify-center">
-        <div className="text-white text-center">
-          <div className="text-5xl animate-spin mb-4">&#9203;</div>
-          <p className="text-xl">Loading&hellip;</p>
+      <main className="flex min-h-screen items-center justify-center">
+        <div className="text-center">
+          <div className="relative flex items-center justify-center">
+            <div className="absolute h-36 w-36 rounded-full border border-[var(--color-gold-dim)] opacity-20 animate-[radialPulse_2.5s_ease-in-out_infinite]" />
+            <div className="absolute h-44 w-44 rounded-full border border-[var(--color-gold-dim)] opacity-10 animate-[radialPulse_2.5s_ease-in-out_infinite_0.5s]" />
+            <svg
+              width="80"
+              height="80"
+              viewBox="0 0 120 120"
+              fill="none"
+              className="animate-[compassSpin_8s_linear_infinite]"
+            >
+              <circle
+                cx="60"
+                cy="60"
+                r="50"
+                stroke="var(--color-gold)"
+                strokeWidth="1.5"
+                strokeDasharray="314"
+                opacity="0.6"
+              />
+              <circle
+                cx="60"
+                cy="60"
+                r="35"
+                stroke="var(--color-gold-dim)"
+                strokeWidth="1"
+                strokeDasharray="220"
+                opacity="0.4"
+              />
+              <line x1="60" y1="60" x2="60" y2="15" stroke="var(--color-gold)" strokeWidth="2" strokeLinecap="round" opacity="0.8" />
+              <line x1="60" y1="60" x2="60" y2="105" stroke="var(--color-gold-dim)" strokeWidth="1.5" strokeLinecap="round" opacity="0.5" />
+              <line x1="60" y1="60" x2="105" y2="60" stroke="var(--color-gold-dim)" strokeWidth="1.5" strokeLinecap="round" opacity="0.5" />
+              <line x1="60" y1="60" x2="15" y2="60" stroke="var(--color-gold-dim)" strokeWidth="1.5" strokeLinecap="round" opacity="0.5" />
+              <circle cx="60" cy="60" r="3" fill="var(--color-gold)" />
+            </svg>
+          </div>
+          <p className="font-body mt-8 text-sm tracking-widest text-[var(--color-gold)] animate-pulse-glow">
+            Connecting&hellip;
+          </p>
         </div>
-      </div>
+      </main>
     );
   }
 

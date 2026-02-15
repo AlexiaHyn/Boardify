@@ -20,16 +20,18 @@ function RoomForm() {
 
   if (!game) {
     return (
-      <div className="min-h-screen bg-[#07070A] flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
-          <div className="text-5xl mb-4">🔍</div>
-          <p className="text-white text-xl font-bold">Game not found</p>
-          <p className="text-zinc-500 text-sm mt-2">
+          <div className="mb-4 text-5xl">&#128270;</div>
+          <p className="font-display text-xl tracking-wide text-[var(--color-cream)]">
+            Game not found
+          </p>
+          <p className="font-body mt-2 text-sm text-[var(--color-stone-dim)]">
             No game matches &ldquo;{gameParam}&rdquo;
           </p>
           <Link
             href="/showcase"
-            className="mt-6 inline-block text-zinc-400 hover:text-white transition-colors"
+            className="mt-6 inline-block font-body text-sm text-[var(--color-gold)] transition-colors hover:text-[var(--color-gold-bright)]"
           >
             &#8592; Browse Games
           </Link>
@@ -84,81 +86,85 @@ function RoomForm() {
   };
 
   return (
-    <div className="min-h-screen bg-[#07070A] relative overflow-hidden">
-      {/* Game-colored ambient glow */}
+    <main className="relative flex min-h-screen flex-col items-center px-4 py-12">
+      {/* Backdrop */}
       <div
-        className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] rounded-full blur-[150px] pointer-events-none"
-        style={{ backgroundColor: `rgba(${game.accentColorRgb}, 0.06)` }}
+        className="pointer-events-none fixed inset-0 z-0"
+        style={{
+          background: `
+            radial-gradient(ellipse 50% 35% at 50% 25%, rgba(201, 168, 76, 0.05) 0%, transparent 70%),
+            linear-gradient(to bottom, var(--color-bg-deep) 0%, var(--color-bg-base) 100%)
+          `,
+        }}
       />
 
-      <div className="relative z-10 min-h-screen flex flex-col">
+      <div className="relative z-10 flex w-full min-h-[calc(100vh-6rem)] flex-col items-center justify-center">
         {/* Nav */}
-        <nav className="flex items-center justify-between px-8 py-6">
+        <nav className="absolute left-0 right-0 top-0 flex items-center justify-between px-4 py-0">
           <Link
             href="/"
-            className="font-display text-xl font-bold text-white tracking-tight"
+            className="font-display text-lg tracking-[0.12em] text-[var(--color-cream)]"
           >
-            Boardify
+            BOARDIFY
           </Link>
           <Link
             href="/showcase"
-            className="text-zinc-400 hover:text-white transition-colors text-sm font-medium"
+            className="font-body text-sm text-[var(--color-stone)] transition-colors hover:text-[var(--color-cream)]"
           >
             &#8592; All Games
           </Link>
         </nav>
 
-        {/* Main */}
-        <div className="flex-1 flex items-center justify-center px-4 pb-16">
-          <div className="w-full max-w-md">
-            {/* Game hero */}
-            <div className="text-center mb-10">
-              <div className="text-7xl mb-4">{game.emoji}</div>
-              <h1 className="font-display text-4xl font-extrabold text-white tracking-tight mb-2">
-                {game.name}
-              </h1>
-              <p className="text-zinc-500 mt-2 leading-relaxed max-w-sm mx-auto">
-                {game.description}
-              </p>
-              <p className="text-zinc-600 text-sm mt-3">{game.playerCount}</p>
-            </div>
+        <div className="w-full max-w-md">
+          {/* Game hero */}
+          <div className="mb-8 text-center animate-fade-in-up">
+            <div className="mb-3 text-6xl">{game.emoji}</div>
+            <h1 className="font-display text-3xl font-semibold tracking-[0.08em] text-[var(--color-cream)]">
+              {game.name}
+            </h1>
+            <p className="font-body mx-auto mt-2 max-w-sm text-sm font-light leading-relaxed text-[var(--color-stone)]">
+              {game.description}
+            </p>
+            <p className="font-body mt-2 text-xs text-[var(--color-stone-dim)]">
+              {game.playerCount}
+            </p>
+          </div>
 
-            {/* Mode toggle */}
-            <div className="flex bg-white/[0.03] border border-white/[0.08] rounded-xl p-1 mb-6">
-              <button
-                onClick={() => {
-                  setMode('create');
-                  setError('');
-                }}
-                className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-                  mode === 'create'
-                    ? 'bg-white/[0.08] text-white'
-                    : 'text-zinc-500 hover:text-zinc-300'
-                }`}
-              >
-                Create Room
-              </button>
-              <button
-                onClick={() => {
-                  setMode('join');
-                  setError('');
-                }}
-                className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-                  mode === 'join'
-                    ? 'bg-white/[0.08] text-white'
-                    : 'text-zinc-500 hover:text-zinc-300'
-                }`}
-              >
-                Join Room
-              </button>
-            </div>
+          {/* Mode toggle */}
+          <div className="mb-5 flex overflow-hidden rounded-lg border border-[var(--color-border)] animate-fade-in-up stagger-2">
+            <button
+              onClick={() => {
+                setMode('create');
+                setError('');
+              }}
+              className={`flex-1 py-2.5 font-display text-xs font-medium tracking-wider transition-all ${
+                mode === 'create'
+                  ? 'bg-[var(--color-gold-muted)] text-[var(--color-gold)] border-b-2 border-[var(--color-gold)]'
+                  : 'bg-[var(--color-surface)] text-[var(--color-stone)] hover:text-[var(--color-cream)]'
+              }`}
+            >
+              CREATE ROOM
+            </button>
+            <button
+              onClick={() => {
+                setMode('join');
+                setError('');
+              }}
+              className={`flex-1 py-2.5 font-display text-xs font-medium tracking-wider transition-all ${
+                mode === 'join'
+                  ? 'bg-[var(--color-gold-muted)] text-[var(--color-gold)] border-b-2 border-[var(--color-gold)]'
+                  : 'bg-[var(--color-surface)] text-[var(--color-stone)] hover:text-[var(--color-cream)]'
+              }`}
+            >
+              JOIN ROOM
+            </button>
+          </div>
 
-            {/* Form */}
-            <div className="bg-white/[0.02] border border-white/[0.06] rounded-2xl p-6 space-y-4">
+          {/* Form panel */}
+          <div className="section-panel animate-fade-in-up stagger-3">
+            <div className="section-panel-inner space-y-4">
               <div>
-                <label className="text-zinc-500 text-sm block mb-2">
-                  Your Name
-                </label>
+                <label className="form-label">Your Name</label>
                 <input
                   type="text"
                   placeholder="e.g. PlayerOne"
@@ -169,53 +175,61 @@ function RoomForm() {
                     (mode === 'create' ? handleCreate() : handleJoin())
                   }
                   maxLength={20}
-                  className="w-full bg-white/[0.03] border border-white/[0.08] rounded-xl px-4 py-3 text-white placeholder:text-zinc-700 focus:outline-none focus:border-white/20 transition-colors"
+                  className="form-input w-full"
                 />
               </div>
 
               {mode === 'join' && (
                 <div>
-                  <label className="text-zinc-500 text-sm block mb-2">
-                    Room Code
-                  </label>
+                  <label className="form-label">Room Code</label>
                   <input
                     type="text"
                     placeholder="e.g. ABC123"
                     value={roomCode}
-                    onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+                    onChange={(e) =>
+                      setRoomCode(e.target.value.toUpperCase())
+                    }
                     onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
                     maxLength={6}
-                    className="w-full bg-white/[0.03] border border-white/[0.08] rounded-xl px-4 py-3 text-white placeholder:text-zinc-700 font-mono text-xl text-center tracking-widest focus:outline-none focus:border-white/20 transition-colors uppercase"
+                    className="form-input w-full font-mono text-xl text-center tracking-widest uppercase"
                   />
                 </div>
               )}
 
               {error && (
-                <p className="text-red-400 text-sm bg-red-900/20 rounded-lg px-3 py-2">
+                <div
+                  className="rounded-lg border px-4 py-3 font-body text-sm"
+                  style={{
+                    borderColor: 'var(--color-crimson-dim)',
+                    backgroundColor: 'rgba(184, 56, 75, 0.1)',
+                    color: 'var(--color-crimson-bright)',
+                  }}
+                >
                   {error}
-                </p>
+                </div>
               )}
 
               <button
                 onClick={mode === 'create' ? handleCreate : handleJoin}
                 disabled={loading}
-                className="w-full font-bold py-4 rounded-2xl text-lg transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-40 disabled:hover:brightness-100"
+                className="btn-press w-full rounded-lg bg-[var(--color-crimson)] py-3 font-display text-sm font-medium tracking-wider text-[var(--color-cream)] transition-all hover:bg-[var(--color-crimson-bright)] hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-40"
                 style={{
-                  backgroundColor: game.accentColor,
-                  color: 'white',
+                  boxShadow: loading
+                    ? undefined
+                    : '0 4px 16px rgba(184, 56, 75, 0.2)',
                 }}
               >
                 {loading
-                  ? 'Loading\u2026'
+                  ? 'LOADING\u2026'
                   : mode === 'create'
-                    ? 'Create Room'
-                    : 'Join Game'}
+                    ? 'CREATE ROOM'
+                    : 'JOIN GAME'}
               </button>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </main>
   );
 }
 
@@ -223,7 +237,7 @@ export default function RoomPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-[#07070A] flex items-center justify-center text-white">
+        <div className="flex min-h-screen items-center justify-center font-body text-[var(--color-stone)]">
           Loading&hellip;
         </div>
       }

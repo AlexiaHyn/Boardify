@@ -27,7 +27,6 @@ export function PlayerHand({
   const isPlaying = gameState.phase === 'playing';
   const isAwaiting = gameState.phase === 'awaiting_response';
 
-  // Can play nope if there's a pending action and we have one
   const pending = gameState.pendingAction;
   const canNope =
     isAwaiting &&
@@ -37,7 +36,7 @@ export function PlayerHand({
   const canPlayCard = (card: Card): boolean => {
     if (loading) return false;
     if (card.type === 'hidden') return false;
-    if (card.subtype === 'defuse') return false; // auto-played
+    if (card.subtype === 'defuse') return false;
     if (card.subtype === 'exploding') return false;
     if (card.isReaction && card.subtype === 'nope') return canNope || (isMyTurn && isPlaying);
     return isMyTurn && isPlaying;
@@ -55,24 +54,24 @@ export function PlayerHand({
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <span className="text-xl">{player.emoji}</span>
-          <span className="text-white font-bold">{player.name}</span>
-          <span className="text-white/60 text-sm">({cardCount} card{cardCount !== 1 ? 's' : ''})</span>
+          <span className="font-display font-semibold tracking-wide text-[var(--color-cream)]">{player.name}</span>
+          <span className="font-body text-sm text-[var(--color-stone)]">({cardCount} card{cardCount !== 1 ? 's' : ''})</span>
         </div>
         {isMyTurn && isPlaying && (
-          <span className="bg-green-500 text-white text-xs font-bold px-3 py-1 rounded-full animate-pulse">
+          <span className="bg-[var(--color-verdant)] text-[var(--color-cream)] font-display text-[10px] font-bold tracking-wider px-3 py-1 rounded-full animate-pulse">
             YOUR TURN
           </span>
         )}
         {canNope && (
-          <span className="bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-full animate-pulse">
+          <span className="bg-[var(--color-crimson)] text-[var(--color-cream)] font-display text-[10px] font-bold tracking-wider px-3 py-1 rounded-full animate-pulse">
             NOPE?
           </span>
         )}
       </div>
 
-      <div className="flex flex-wrap gap-3 justify-center min-h-[9rem] bg-black/20 rounded-xl p-3">
+      <div className="flex flex-wrap gap-3 justify-center min-h-[9rem] bg-[var(--color-bg-base)] rounded-xl p-3 border border-[var(--color-border-subtle)]">
         {player.hand.cards.length === 0 ? (
-          <div className="flex items-center justify-center w-full text-white/40 text-sm">
+          <div className="flex items-center justify-center w-full font-body text-sm text-[var(--color-stone-dim)]">
             No cards in hand
           </div>
         ) : (
@@ -98,7 +97,7 @@ export function PlayerHand({
       </div>
 
       {isMyTurn && isPlaying && (
-        <p className="text-white/60 text-xs text-center mt-2">
+        <p className="font-body text-xs text-center mt-2 text-[var(--color-stone)]">
           Click a card to play it, or draw from the deck
         </p>
       )}

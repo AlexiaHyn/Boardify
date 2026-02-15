@@ -8,9 +8,9 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        display: ['var(--font-syne)', 'system-ui', 'sans-serif'],
-        body: ['var(--font-outfit)', 'system-ui', 'sans-serif'],
-        sans: ['var(--font-outfit)', 'system-ui', 'sans-serif'],
+        display: ['var(--font-display)', 'Cinzel', 'Georgia', 'serif'],
+        body: ['var(--font-body)', 'Crimson Pro', 'Georgia', 'serif'],
+        sans: ['var(--font-body)', 'Crimson Pro', 'Georgia', 'serif'],
         mono: ['JetBrains Mono', 'Courier New', 'monospace'],
       },
       animation: {

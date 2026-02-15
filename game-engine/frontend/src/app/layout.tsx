@@ -1,28 +1,34 @@
 import type { Metadata } from 'next';
-import { Syne, Outfit } from 'next/font/google';
+import { Cinzel, Crimson_Pro } from 'next/font/google';
 import './globals.css';
 
-const syne = Syne({
+const cinzel = Cinzel({
   subsets: ['latin'],
-  variable: '--font-syne',
-  display: 'swap',
+  variable: '--font-display',
+  weight: ['400', '500', '600', '700'],
 });
 
-const outfit = Outfit({
+const crimsonPro = Crimson_Pro({
   subsets: ['latin'],
-  variable: '--font-outfit',
-  display: 'swap',
+  variable: '--font-body',
+  weight: ['300', '400', '500', '600', '700'],
+  style: ['normal', 'italic'],
 });
 
 export const metadata: Metadata = {
-  title: 'Boardify',
-  description: 'Imagine, create, and play any board game online with friends',
+  title: 'Boardify – Conjure Your Next Great Game',
+  description:
+    'Describe a board game idea and watch it materialize into a complete blueprint, powered by AI.',
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <html lang="en" className={`${syne.variable} ${outfit.variable}`}>
-      <body className="antialiased font-body">{children}</body>
+    <html lang="en" className={`${cinzel.variable} ${crimsonPro.variable}`}>
+      <body className="antialiased">{children}</body>
     </html>
   );
 }

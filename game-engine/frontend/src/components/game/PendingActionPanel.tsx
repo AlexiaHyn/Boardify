@@ -25,7 +25,6 @@ export function PendingActionPanel({
   if (!pending) return null;
   if (gameState.phase !== 'awaiting_response') return null;
 
-  // Insert exploding: only the player who defused sees this
   if (pending.type === 'insert_exploding' && pending.playerId === localPlayerId) {
     return (
       <InsertExplodingModal
@@ -35,7 +34,6 @@ export function PendingActionPanel({
     );
   }
 
-  // Favor target must give a card
   if (pending.type === 'favor' && pending.targetPlayerId === localPlayerId) {
     const localPlayer = gameState.players.find((p) => p.id === localPlayerId);
     const requester = gameState.players.find((p) => p.id === pending.playerId);
@@ -50,7 +48,6 @@ export function PendingActionPanel({
     }
   }
 
-  // Nope window: any player with a Nope can cancel a pending action (not insert_exploding)
   if (
     pending.type !== 'insert_exploding' &&
     pending.type !== 'favor' &&
@@ -66,12 +63,22 @@ export function PendingActionPanel({
   // Generic waiting overlay
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-      <div className="bg-gray-900 rounded-2xl p-8 border border-white/20 text-center max-w-sm">
-        <div className="text-4xl mb-4 animate-spin">⏳</div>
-        <p className="text-white font-bold text-lg">Waiting…</p>
-        <p className="text-white/60 text-sm mt-2">
-          {pending.type === 'favor' ? 'Waiting for a player to give a card…' : 'Waiting for response…'}
-        </p>
+      <div className="section-panel max-w-sm text-center">
+        <div className="section-panel-inner">
+          <div className="relative flex items-center justify-center mb-4">
+            <div className="absolute h-20 w-20 rounded-full border border-[var(--color-gold-dim)] opacity-20 animate-[radialPulse_2.5s_ease-in-out_infinite]" />
+            <svg width="40" height="40" viewBox="0 0 120 120" fill="none" className="animate-[compassSpin_8s_linear_infinite]">
+              <circle cx="60" cy="60" r="50" stroke="var(--color-gold)" strokeWidth="1.5" strokeDasharray="314" opacity="0.6" />
+              <line x1="60" y1="60" x2="60" y2="15" stroke="var(--color-gold)" strokeWidth="2" strokeLinecap="round" opacity="0.8" />
+              <line x1="60" y1="60" x2="60" y2="105" stroke="var(--color-gold-dim)" strokeWidth="1.5" strokeLinecap="round" opacity="0.5" />
+              <circle cx="60" cy="60" r="3" fill="var(--color-gold)" />
+            </svg>
+          </div>
+          <p className="font-display font-semibold text-lg tracking-wide text-[var(--color-cream)]">Waiting&hellip;</p>
+          <p className="font-body text-sm text-[var(--color-stone)] mt-2">
+            {pending.type === 'favor' ? 'Waiting for a player to give a card\u2026' : 'Waiting for response\u2026'}
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -91,47 +98,49 @@ function InsertExplodingModal({
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-      <div className="bg-gray-900 rounded-2xl p-8 border border-orange-500/50 text-center max-w-md w-full mx-4 shadow-2xl">
-        <div className="text-5xl mb-4">💣</div>
-        <h2 className="text-white font-bold text-xl mb-2">You Defused It!</h2>
-        <p className="text-white/70 text-sm mb-6">
-          Choose where to secretly reinsert the Exploding Kitten into the deck.
-          Position 0 = top, {max} = bottom.
-        </p>
+      <div className="section-panel max-w-md w-full mx-4 text-center" style={{ borderColor: 'var(--color-amber)' }}>
+        <div className="section-panel-inner">
+          <div className="text-5xl mb-4">&#128163;</div>
+          <h2 className="font-display text-xl font-semibold tracking-wide text-[var(--color-cream)] mb-2">You Defused It!</h2>
+          <p className="font-body text-sm text-[var(--color-stone)] mb-6">
+            Choose where to secretly reinsert the Exploding Kitten into the deck.
+            Position 0 = top, {max} = bottom.
+          </p>
 
-        <div className="mb-6">
-          <label className="text-white/60 text-sm block mb-2">
-            Position: <span className="text-yellow-400 font-bold text-lg">{position}</span>
-            {position === 0 && <span className="text-red-400 text-xs ml-2">(TOP — dangerous!)</span>}
-            {position === max && <span className="text-green-400 text-xs ml-2">(BOTTOM — safe!)</span>}
-          </label>
-          <input
-            type="range"
-            min={0}
-            max={max}
-            value={position}
-            onChange={(e) => setPosition(Number(e.target.value))}
-            className="w-full accent-orange-500"
-          />
-          <div className="flex justify-between text-white/30 text-xs mt-1">
-            <span>Top</span>
-            <span>Bottom</span>
+          <div className="mb-6">
+            <label className="font-body text-sm text-[var(--color-stone)] block mb-2">
+              Position: <span className="text-[var(--color-gold)] font-bold text-lg">{position}</span>
+              {position === 0 && <span className="text-[var(--color-crimson-bright)] text-xs ml-2">(TOP &mdash; dangerous!)</span>}
+              {position === max && <span className="text-[var(--color-verdant)] text-xs ml-2">(BOTTOM &mdash; safe!)</span>}
+            </label>
+            <input
+              type="range"
+              min={0}
+              max={max}
+              value={position}
+              onChange={(e) => setPosition(Number(e.target.value))}
+              className="w-full accent-[var(--color-amber)]"
+            />
+            <div className="flex justify-between font-body text-[var(--color-stone-dim)] text-xs mt-1">
+              <span>Top</span>
+              <span>Bottom</span>
+            </div>
           </div>
-        </div>
 
-        <div className="flex gap-3 justify-center">
-          <button
-            onClick={() => onInsert(position)}
-            className="bg-orange-500 hover:bg-orange-600 text-white font-bold px-8 py-3 rounded-xl transition-colors shadow-lg"
-          >
-            Insert Here
-          </button>
-          <button
-            onClick={() => onInsert(Math.floor(Math.random() * (max + 1)))}
-            className="bg-gray-700 hover:bg-gray-600 text-white/70 px-4 py-3 rounded-xl transition-colors text-sm"
-          >
-            Random
-          </button>
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={() => onInsert(position)}
+              className="btn-press bg-[var(--color-amber)] hover:bg-[var(--color-amber-bright)] text-[var(--color-cream)] font-display font-medium tracking-wider text-sm px-8 py-3 rounded-xl transition-colors shadow-lg"
+            >
+              INSERT HERE
+            </button>
+            <button
+              onClick={() => onInsert(Math.floor(Math.random() * (max + 1)))}
+              className="btn-press bg-[var(--color-surface-raised)] hover:bg-[var(--color-border)] text-[var(--color-stone)] font-display tracking-wider text-xs px-4 py-3 rounded-xl transition-colors"
+            >
+              RANDOM
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -151,24 +160,26 @@ function GiveCardModal({
 }) {
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-      <div className="bg-gray-900 rounded-2xl p-8 border border-purple-500/50 text-center max-w-lg w-full mx-4 shadow-2xl">
-        <div className="text-5xl mb-4">🙏</div>
-        <h2 className="text-white font-bold text-xl mb-2">Favor!</h2>
-        <p className="text-white/70 text-sm mb-6">
-          <span className="text-yellow-400 font-bold">{requesterName}</span> wants a card.
-          Choose which card to give them.
-        </p>
+      <div className="section-panel max-w-lg w-full mx-4 text-center" style={{ borderColor: 'var(--color-rose)' }}>
+        <div className="section-panel-inner">
+          <div className="text-5xl mb-4">&#128591;</div>
+          <h2 className="font-display text-xl font-semibold tracking-wide text-[var(--color-cream)] mb-2">Favor!</h2>
+          <p className="font-body text-sm text-[var(--color-stone)] mb-6">
+            <span className="text-[var(--color-gold)] font-bold">{requesterName}</span> wants a card.
+            Choose which card to give them.
+          </p>
 
-        <div className="flex flex-wrap gap-3 justify-center mb-6">
-          {player.hand.cards.map((card) => (
-            <div key={card.id} className="cursor-pointer" onClick={() => onGive(card.id)}>
-              <GameCard
-                card={card}
-                selectable
-                onClick={() => onGive(card.id)}
-              />
-            </div>
-          ))}
+          <div className="flex flex-wrap gap-3 justify-center mb-6">
+            {player.hand.cards.map((card) => (
+              <div key={card.id} className="cursor-pointer" onClick={() => onGive(card.id)}>
+                <GameCard
+                  card={card}
+                  selectable
+                  onClick={() => onGive(card.id)}
+                />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
@@ -188,17 +199,19 @@ function NopeWindow({
 }) {
   return (
     <div className="fixed bottom-4 right-4 z-50">
-      <div className="bg-red-900/90 rounded-xl p-4 border border-red-500 shadow-2xl max-w-xs">
-        <p className="text-white font-bold text-sm mb-2">🚫 Play Nope?</p>
-        <p className="text-white/70 text-xs mb-3">
-          Cancel the <span className="text-red-300 font-semibold">{pendingType}</span> action?
-        </p>
-        <button
-          onClick={() => onNope(nopeCard.id)}
-          className="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-2 rounded-lg transition-colors"
-        >
-          NOPE! 🚫
-        </button>
+      <div className="section-panel max-w-xs" style={{ borderColor: 'var(--color-crimson)' }}>
+        <div className="section-panel-inner">
+          <p className="font-display font-semibold text-sm tracking-wide text-[var(--color-cream)] mb-2">Play Nope?</p>
+          <p className="font-body text-xs text-[var(--color-stone)] mb-3">
+            Cancel the <span className="text-[var(--color-crimson-bright)] font-semibold">{pendingType}</span> action?
+          </p>
+          <button
+            onClick={() => onNope(nopeCard.id)}
+            className="btn-press w-full bg-[var(--color-crimson)] hover:bg-[var(--color-crimson-bright)] text-[var(--color-cream)] font-display font-medium tracking-wider text-xs py-2 rounded-lg transition-colors"
+          >
+            NOPE!
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -229,32 +242,34 @@ export function TargetSelector({
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-      <div className="bg-gray-900 rounded-2xl p-8 border border-blue-500/50 text-center max-w-sm w-full mx-4 shadow-2xl">
-        <h2 className="text-white font-bold text-xl mb-2">{title}</h2>
-        {subtitle && <p className="text-white/60 text-sm mb-6">{subtitle}</p>}
+      <div className="section-panel max-w-sm w-full mx-4 text-center" style={{ borderColor: 'var(--color-gold-dim)' }}>
+        <div className="section-panel-inner">
+          <h2 className="font-display text-xl font-semibold tracking-wide text-[var(--color-cream)] mb-2">{title}</h2>
+          {subtitle && <p className="font-body text-sm text-[var(--color-stone)] mb-6">{subtitle}</p>}
 
-        <div className="space-y-3 mb-6">
-          {targets.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => onSelect(p.id)}
-              className="w-full flex items-center gap-3 bg-gray-800 hover:bg-gray-700 rounded-xl p-3 transition-colors border border-white/10"
-            >
-              <span className="text-2xl">{p.emoji}</span>
-              <div className="text-left">
-                <p className="text-white font-semibold">{p.name}</p>
-                <p className="text-white/40 text-xs">{p.hand.cards.length} cards</p>
-              </div>
-            </button>
-          ))}
+          <div className="space-y-3 mb-6">
+            {targets.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => onSelect(p.id)}
+                className="btn-press w-full flex items-center gap-3 bg-[var(--color-bg-deep)] hover:bg-[var(--color-surface-raised)] rounded-xl p-3 transition-colors border border-[var(--color-border)]"
+              >
+                <span className="text-2xl">{p.emoji}</span>
+                <div className="text-left">
+                  <p className="font-body font-semibold text-[var(--color-cream)]">{p.name}</p>
+                  <p className="font-body text-xs text-[var(--color-stone-dim)]">{p.hand.cards.length} cards</p>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          <button
+            onClick={onCancel}
+            className="font-body text-sm text-[var(--color-stone-dim)] hover:text-[var(--color-cream)] transition-colors"
+          >
+            Cancel
+          </button>
         </div>
-
-        <button
-          onClick={onCancel}
-          className="text-white/40 hover:text-white text-sm transition-colors"
-        >
-          Cancel
-        </button>
       </div>
     </div>
   );

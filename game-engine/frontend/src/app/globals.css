@@ -2,28 +2,417 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─── Theme: The Cartographer's Workshop ─────────────────────────────── */
+
+:root {
+  /* Color Palette */
+  --color-bg-deep: #0e0c11;
+  --color-bg-base: #1a1720;
+  --color-surface: #1e1a26;
+  --color-surface-raised: #252030;
+  --color-border: #302a3c;
+  --color-border-subtle: #252030;
+
+  --color-gold: #c9a84c;
+  --color-gold-dim: #a68a3a;
+  --color-gold-bright: #e0c060;
+  --color-gold-muted: rgba(201, 168, 76, 0.15);
+
+  --color-crimson: #b8384b;
+  --color-crimson-bright: #d44a5e;
+  --color-crimson-dim: #8b2a3a;
+
+  --color-cream: #ede4d3;
+  --color-cream-dim: #c8bfae;
+  --color-stone: #9b9683;
+  --color-stone-dim: #6b6758;
+
+  --color-teal: #2a6b5e;
+  --color-teal-bright: #3a9a86;
+  --color-amber: #a17832;
+  --color-amber-bright: #c99840;
+  --color-rose: #8b3a4a;
+  --color-rose-bright: #b54a5e;
+  --color-verdant: #4aaf82;
+  --color-verdant-bright: #5cd49a;
+}
+
+/* ─── Base ────────────────────────────────────────────────────────────── */
+
 @layer base {
   * {
     box-sizing: border-box;
   }
+
+  ::selection {
+    background: var(--color-gold-muted);
+    color: var(--color-cream);
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
-    @apply bg-[#07070A] text-white;
+    font-family: var(--font-body), 'Crimson Pro', Georgia, serif;
+    background: var(--color-bg-deep);
+    color: var(--color-cream);
+    min-height: 100vh;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  /* Grain overlay for texture */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    pointer-events: none;
+    opacity: 0.03;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 256px 256px;
+  }
+
+  /* Dot grid background texture */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.07;
+    background-image: radial-gradient(
+      circle,
+      var(--color-gold-dim) 1px,
+      transparent 1px
+    );
+    background-size: 32px 32px;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--color-bg-deep);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-gold-dim);
   }
 }
 
+/* ─── Keyframe Animations ─────────────────────────────────────────────── */
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+@keyframes cardDeal {
+  from {
+    opacity: 0;
+    transform: translateY(30px) rotate(-3deg) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) rotate(0deg) scale(1);
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    opacity: 0.6;
+    text-shadow: 0 0 20px rgba(201, 168, 76, 0);
+  }
+  50% {
+    opacity: 1;
+    text-shadow: 0 0 30px rgba(201, 168, 76, 0.3);
+  }
+}
+
+@keyframes compassSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes drawCircle {
+  from { stroke-dashoffset: 314; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes drawNeedle {
+  from { stroke-dashoffset: 80; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes radialPulse {
+  0%, 100% { opacity: 0.15; transform: scale(1); }
+  50% { opacity: 0.25; transform: scale(1.05); }
+}
+
+@keyframes bounceOnce {
+  0%   { transform: translateX(-50%) translateY(-20px); opacity: 0; }
+  60%  { transform: translateX(-50%) translateY(5px); opacity: 1; }
+  100% { transform: translateX(-50%) translateY(0); opacity: 1; }
+}
+
+/* ─── Utility Classes ─────────────────────────────────────────────────── */
+
 @layer utilities {
+  .font-display {
+    font-family: var(--font-display), 'Cinzel', Georgia, serif;
+  }
+
+  .font-body {
+    font-family: var(--font-body), 'Crimson Pro', Georgia, serif;
+  }
+
+  .animate-fade-in-up {
+    animation: fadeInUp 0.6s ease-out both;
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-out both;
+  }
+
+  .animate-card-deal {
+    animation: cardDeal 0.5s ease-out both;
+  }
+
+  .animate-pulse-glow {
+    animation: pulseGlow 2.5s ease-in-out infinite;
+  }
+
+  .animate-blink {
+    animation: blink 1s steps(2) infinite;
+  }
+
   .animate-bounce-once {
     animation: bounceOnce 0.5s ease-out;
   }
 
-  @keyframes bounceOnce {
-    0%   { transform: translateX(-50%) translateY(-20px); opacity: 0; }
-    60%  { transform: translateX(-50%) translateY(5px); opacity: 1; }
-    100% { transform: translateX(-50%) translateY(0); opacity: 1; }
-  }
+  /* Stagger delays */
+  .stagger-1 { animation-delay: 0.05s; }
+  .stagger-2 { animation-delay: 0.1s; }
+  .stagger-3 { animation-delay: 0.15s; }
+  .stagger-4 { animation-delay: 0.2s; }
+  .stagger-5 { animation-delay: 0.25s; }
+  .stagger-6 { animation-delay: 0.3s; }
+  .stagger-7 { animation-delay: 0.35s; }
+  .stagger-8 { animation-delay: 0.4s; }
 
   /* Subtle card glow for playable cards */
   .card-playable-glow {
     box-shadow: 0 0 12px 2px rgba(250, 204, 21, 0.4);
   }
+}
+
+/* ─── Section Panel (with gold corner ornaments) ──────────────────────── */
+
+.section-panel {
+  position: relative;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 1.5rem;
+  overflow: hidden;
+}
+
+.section-panel::before,
+.section-panel::after {
+  content: '';
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.section-panel::before {
+  top: 8px;
+  left: 8px;
+  border-top: 1.5px solid var(--color-gold-dim);
+  border-left: 1.5px solid var(--color-gold-dim);
+}
+
+.section-panel::after {
+  bottom: 8px;
+  right: 8px;
+  border-bottom: 1.5px solid var(--color-gold-dim);
+  border-right: 1.5px solid var(--color-gold-dim);
+}
+
+.section-panel-inner {
+  position: relative;
+}
+
+.section-panel-inner::before,
+.section-panel-inner::after {
+  content: '';
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.section-panel-inner::before {
+  top: -16px;
+  right: -16px;
+  border-top: 1.5px solid var(--color-gold-dim);
+  border-right: 1.5px solid var(--color-gold-dim);
+}
+
+.section-panel-inner::after {
+  bottom: -16px;
+  left: -16px;
+  border-bottom: 1.5px solid var(--color-gold-dim);
+  border-left: 1.5px solid var(--color-gold-dim);
+}
+
+/* ─── Gold Divider ────────────────────────────────────────────────────── */
+
+.gold-divider {
+  border: none;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--color-gold-dim) 20%,
+    var(--color-gold) 50%,
+    var(--color-gold-dim) 80%,
+    transparent
+  );
+  opacity: 0.5;
+}
+
+/* ─── Playing Card ────────────────────────────────────────────────────── */
+
+.playing-card {
+  position: relative;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  overflow: hidden;
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease,
+    border-color 0.25s ease;
+}
+
+.playing-card:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    0 8px 32px rgba(201, 168, 76, 0.12),
+    0 2px 8px rgba(0, 0, 0, 0.3);
+  border-color: var(--color-gold-dim);
+}
+
+.playing-card-band {
+  height: 4px;
+  width: 100%;
+}
+
+.playing-card-band--teal {
+  background: linear-gradient(90deg, var(--color-teal), var(--color-teal-bright));
+}
+.playing-card-band--amber {
+  background: linear-gradient(90deg, var(--color-amber), var(--color-amber-bright));
+}
+.playing-card-band--rose {
+  background: linear-gradient(90deg, var(--color-rose), var(--color-rose-bright));
+}
+.playing-card-band--crimson {
+  background: linear-gradient(90deg, var(--color-crimson-dim), var(--color-crimson));
+}
+.playing-card-band--gold {
+  background: linear-gradient(90deg, var(--color-gold-dim), var(--color-gold));
+}
+.playing-card-band--verdant {
+  background: linear-gradient(90deg, var(--color-teal), var(--color-verdant));
+}
+
+/* ─── Form Elements ───────────────────────────────────────────────────── */
+
+.form-label {
+  display: block;
+  font-family: var(--font-display), 'Cinzel', Georgia, serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-stone);
+  margin-bottom: 8px;
+}
+
+.form-input {
+  padding: 10px 14px;
+  background: var(--color-bg-deep);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-family: var(--font-body), 'Crimson Pro', Georgia, serif;
+  font-size: 15px;
+  color: var(--color-cream);
+  outline: none;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.form-input:hover {
+  border-color: var(--color-gold-dim);
+}
+
+.form-input:focus {
+  border-color: var(--color-gold);
+  box-shadow: 0 0 0 3px rgba(201, 168, 76, 0.12);
+}
+
+.form-input::placeholder {
+  color: var(--color-stone-dim);
+  font-style: italic;
+}
+
+/* ─── Input Focus States ──────────────────────────────────────────────── */
+
+.input-naked:focus,
+.input-naked:focus-visible {
+  border-color: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* ─── Button Press ────────────────────────────────────────────────────── */
+
+.btn-press {
+  transition:
+    transform 0.1s ease,
+    box-shadow 0.15s ease;
+}
+
+.btn-press:active {
+  transform: scale(0.97);
 }
