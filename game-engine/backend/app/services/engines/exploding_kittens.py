@@ -1,578 +1,575 @@
 """
-Exploding Kittens game engine.
-Handles setup_game() and apply_action() for EK-specific rules.
+Exploding Kittens Plugin
+=========================
+Game-specific customizations for Exploding Kittens.
+
+Key mechanics handled by this plugin:
+- Drawing exploding kittens (elimination or defuse)
+- Bomb reinsertion after defusing
+- Attack stacking (forces next player to draw multiple times)
+- Skip (ends turn without drawing, cancels attack)
+- Turn flow: Players can play multiple cards before drawing
+
+CRITICAL: In Exploding Kittens, playing cards does NOT end your turn!
+- ✅ Players can play as many cards as they want
+- ✅ Turn only ends when: drawing a card, playing Skip, or playing Attack
+- ❌ Playing Shuffle, Favor, etc. does NOT end turn
+
+This is different from UNO where playing a card ends your turn.
+
+Everything else (setup, basic card effects) is handled by universal.py.
 """
 from __future__ import annotations
 
 import random
-import uuid
-from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
-from app.models.game import (
-    Card, CardEffect, GameState, Hand, LogEntry, Player, Zone,
+from app.models.game import Card, GameState, Player
+from app.services.engines.game_plugin_base import GamePluginBase
+from app.services.engines.universal import (
+    _log, _active, _draw_zone, _discard_zone, _get_player
 )
-from app.services.game_loader import build_deck_from_definitions, _parse_card_definitions
 
 
-# ── Utilities ─────────────────────────────────────────────────────────────────
+class ExplodingKittensPlugin(GamePluginBase):
+    """
+    Exploding Kittens-specific game logic plugin.
 
-def _ts() -> int:
-    return int(datetime.now().timestamp() * 1000)
+    Universal.py handles standard setup and turn flow.
+    This plugin adds:
+    - Custom draw_card action (handles exploding/defusing)
+    - Custom insert_exploding action (bomb reinsertion)
+    - Custom attack/skip effects (attack stacking)
+    """
 
+    def __init__(self, game_id: str, game_config: Dict[str, Any]):
+        super().__init__(game_id, game_config)
 
-def _log(msg: str, type_: str = "action",
-         player_id: str = None, card_id: str = None) -> LogEntry:
-    return LogEntry(
-        id=str(uuid.uuid4()), timestamp=_ts(),
-        message=msg, type=type_,
-        playerId=player_id, cardId=card_id,
-    )
+    # -------------------------------------------------------------------------
+    # Custom Actions
+    # -------------------------------------------------------------------------
 
+    def get_custom_actions(self) -> Dict[str, callable]:
+        """Return custom action handlers for Exploding Kittens."""
+        return {
+            "draw_card": self._handle_draw_card,
+            "insert_exploding": self._handle_insert_exploding,
+            "give_card": self._handle_give_card,
+            "nope": self._handle_nope,
+        }
 
-def _active(state: GameState) -> List[Player]:
-    return [p for p in state.players if p.status not in ("eliminated", "winner")]
+    # -------------------------------------------------------------------------
+    # Custom Effects
+    # -------------------------------------------------------------------------
 
+    def get_custom_effects(self) -> Dict[str, callable]:
+        """
+        Return custom effect handlers for Exploding Kittens.
 
-def _draw_zone(state: GameState) -> Optional[Zone]:
-    return next((z for z in state.zones if z.id == "draw_pile"), None)
+        IMPORTANT: All effects return halt_turn_advance=True because
+        in EK, only drawing, Skip, or Attack ends your turn.
+        """
+        return {
+            "attack": self._effect_attack,
+            "skip": self._effect_skip,
+            "give": self._effect_give,
+            "shuffle": self._effect_shuffle,
+            "peek": self._effect_peek,
+            "steal": self._effect_steal,
+        }
 
+    # -------------------------------------------------------------------------
+    # Action Handlers
+    # -------------------------------------------------------------------------
 
-def _discard_zone(state: GameState) -> Optional[Zone]:
-    return next((z for z in state.zones if z.id == "discard_pile"), None)
+    def _handle_draw_card(self, state: GameState, action) -> Tuple[bool, str, List[str]]:
+        """
+        Custom draw action for Exploding Kittens.
 
+        In EK, drawing ends your turn. If you draw an exploding kitten:
+        - With defuse: discard defuse, reinsert bomb
+        - Without defuse: eliminated
+        """
+        player = _get_player(state, action.playerId)
+        if not player:
+            return False, "Player not found", []
+        if state.currentTurnPlayerId != player.id:
+            return False, "Not your turn", []
 
-def _get_player(state: GameState, pid: str) -> Optional[Player]:
-    return next((p for p in state.players if p.id == pid), None)
+        draw = _draw_zone(state)
+        discard = _discard_zone(state)
+        if not draw or not draw.cards:
+            return False, "Draw pile is empty", []
 
+        triggered: List[str] = []
+        drawn = draw.cards.pop(0)
 
-def _advance_turn(state: GameState):
-    """Move to the next player, respecting attack stacks."""
-    attacks = state.metadata.get("attacks_pending", 0)
-    current = _get_player(state, state.currentTurnPlayerId)
+        if drawn.subtype == "exploding":
+            # Check for defuse card
+            defuse = next((c for c in player.hand.cards if c.subtype == "defuse"), None)
+            if defuse:
+                # Defused! Player must choose where to reinsert the bomb
+                player.hand.cards.remove(defuse)
+                discard.cards.insert(0, defuse)
+                state.log.append(_log(
+                    f"💥 {player.name} drew an Exploding Kitten… and Defused it! 😅",
+                    "effect", player.id
+                ))
+                triggered.append("defused")
 
-    if attacks > 1:
-        state.metadata["attacks_pending"] = attacks - 1
-        # Same player still owes draws (tracked via turnCount)
-    else:
-        state.metadata["attacks_pending"] = 0
+                # Enter awaiting_response for bomb reinsertion
+                state.phase = "awaiting_response"
+                state.pendingAction = {
+                    "type": "insert_exploding",
+                    "playerId": player.id,
+                    "card": drawn.model_dump(),
+                    "deckSize": len(draw.cards),
+                }
+                return True, "", triggered
+            else:
+                # No defuse - eliminated!
+                player.status = "eliminated"
+                discard.cards.insert(0, drawn)
+                state.log.append(_log(f"💥 {player.name} EXPLODED! 😱", "effect", player.id))
+                triggered.append("exploded")
+
+                # Check for winner
+                active = _active(state)
+                if len(active) == 1:
+                    winner = active[0]
+                    winner.status = "winner"
+                    state.winner = winner
+                    state.phase = "ended"
+                    state.log.append(_log(f"🎉 {winner.name} wins!", "system"))
+                    return True, "", triggered
+
+                # Advance turn (skip eliminated player)
+                self._advance_turn_with_attacks(state)
+        else:
+            # Normal card - add to hand and end turn
+            player.hand.cards.append(drawn)
+            state.log.append(_log(f"{player.name} drew a card.", "action", player.id))
+            self._advance_turn_with_attacks(state)
+
+        return True, "", triggered
+
+    def _handle_insert_exploding(self, state: GameState, action) -> Tuple[bool, str, List[str]]:
+        """
+        Handle bomb reinsertion after defusing.
+        Player chooses position in deck to insert the bomb.
+        """
+        if state.phase != "awaiting_response":
+            return False, "No pending insert action", []
+        pending = state.pendingAction
+        if not pending or pending.get("type") != "insert_exploding":
+            return False, "No pending insert action", []
+        if action.playerId != pending["playerId"]:
+            return False, "Not your action", []
+
+        draw = _draw_zone(state)
+        bomb_card = Card(**pending["card"])
+        pos = action.metadata.get("position", random.randint(0, len(draw.cards)))
+        pos = max(0, min(pos, len(draw.cards)))
+        draw.cards.insert(pos, bomb_card)
+
+        state.pendingAction = None
+        state.phase = "playing"
+        state.log.append(_log(
+            f"🔧 {pending['playerId']} reinserted the Exploding Kitten into the deck.", "system"
+        ))
+
+        # End turn after reinserting
+        self._advance_turn_with_attacks(state)
+        return True, "", ["bomb_inserted"]
+
+    def _handle_give_card(self, state: GameState, action) -> Tuple[bool, str, List[str]]:
+        """
+        Handle Favor card resolution.
+        Target player gives a card to the requester.
+
+        IMPORTANT: In EK, this does NOT end the requester's turn!
+        They can continue playing cards or draw.
+
+        Convention (matching universal.py):
+        - pending["playerId"]: requester (who played Favor)
+        - pending["targetPlayerId"]: giver (who should give card)
+        """
+        pending = state.pendingAction
+        if not pending or pending.get("type") != "favor":
+            return False, "No favor pending", []
+
+        # Verify the action is from the target player (the giver)
+        if action.playerId != pending["targetPlayerId"]:
+            return False, "Not your action", []
+
+        giver = _get_player(state, pending["targetPlayerId"])
+        receiver = _get_player(state, pending["playerId"])
+        if not giver or not receiver:
+            return False, "Player not found", []
+
+        card_id = action.metadata.get("cardId") or action.cardId
+        card = next((c for c in giver.hand.cards if c.id == card_id), None)
+        if not card:
+            # Auto-pick random card if no specific card chosen
+            if not giver.hand.cards:
+                return False, "No cards to give", []
+            card = random.choice(giver.hand.cards)
+
+        # Transfer the card
+        giver.hand.cards.remove(card)
+        receiver.hand.cards.append(card)
+
+        # Clear pending action and return to playing phase
+        state.pendingAction = None
+        state.phase = "playing"
+
+        state.log.append(_log(
+            f"🎁 {giver.name} gave a card to {receiver.name}.",
+            "effect", giver.id,
+        ))
+
+        # CRITICAL: Do NOT advance turn!
+        # The receiver (who played Favor) continues their turn
+        # They haven't drawn yet!
+
+        return True, "", ["give_resolved"]
+
+    def _handle_nope(self, state: GameState, action) -> Tuple[bool, str, List[str]]:
+        """
+        Handle Nope card to cancel actions.
+
+        Nope can cancel any action except Exploding Kitten or Defuse.
+        Nopes can be chained - you can Nope a Nope!
+
+        IMPORTANT: Playing Nope does NOT end your turn if it's your turn.
+        Nope is a reaction card that can be played during other players' turns.
+        """
+        player = _get_player(state, action.playerId)
+        if not player:
+            return False, "Player not found", []
+
+        # Check for Nope card in hand
+        nope_card = next((c for c in player.hand.cards if c.subtype == "nope"), None)
+        if not nope_card:
+            return False, "No Nope card in hand", []
+
+        # Check if there's something to Nope
+        pending = state.pendingAction
+        if not pending:
+            return False, "Nothing to Nope", []
+
+        # Cannot Nope certain actions
+        nopeable_types = ["favor", "shuffle", "steal"]
+        if pending.get("type") not in nopeable_types:
+            # For now, we allow Noping most pending actions
+            # Could add blacklist for un-nopeable actions
+            pass
+
+        # Remove Nope card from hand
+        player.hand.cards.remove(nope_card)
+        discard = _discard_zone(state)
+        if discard:
+            discard.cards.insert(0, nope_card)
+
+        # Check if this is a Nope chain
+        nope_count = pending.get("nopeCount", 0)
+        nope_count += 1
+
+        # Allow more Nopes (set up for potential Nope chain)
+        pending["nopeCount"] = nope_count
+        pending["lastNoper"] = player.id
+
+        state.log.append(_log(
+            f"🚫 {player.name} played Nope! (Nope #{nope_count})",
+            "action", player.id, nope_card.id
+        ))
+
+        # For simplicity, immediately resolve the Nope
+        # If odd number of Nopes, action is cancelled
+        # If even number of Nopes, action proceeds
+        if nope_count % 2 == 1:
+            # Action is Noped - cancel it
+            state.pendingAction = None
+            state.phase = "playing"
+            state.log.append(_log(
+                f"Action cancelled by Nope!",
+                "system"
+            ))
+            # Return to the original player's turn (whoever played the original card)
+            # Don't advance turn
+            return True, "", ["noped"]
+        else:
+            # Nope was Noped - action proceeds
+            state.log.append(_log(
+                f"Nope was Noped! Action proceeds.",
+                "system"
+            ))
+            # Keep the pending action active
+            # Reset nope count for next potential nope
+            pending["nopeCount"] = 0
+            return True, "", ["nope_noped"]
+
+    # -------------------------------------------------------------------------
+    # Effect Handlers
+    # -------------------------------------------------------------------------
+
+    def _effect_skip(self, state, player, card, effect, action, triggered):
+        """
+        Skip: End turn without drawing.
+        If under attack, cancels one attack turn.
+        """
+        # Ensure card.id is not None
+        card_id = card.id if card and hasattr(card, 'id') else None
+        state.log.append(_log(f"{player.name} played Skip ⏭️", "action", player.id, card_id))
+
+        # Cancel one attack if under attack
+        attacks = state.metadata.get("attacks_pending", 0) or 0
+        if attacks > 0:
+            state.metadata["attacks_pending"] = attacks - 1
+
+        triggered.append("skipped")
+
+        # Ensure turnNumber is initialized
+        if state.turnNumber is None:
+            state.turnNumber = 0
+
+        # Advance turn manually (Skip ends your turn)
+        self._advance_turn_with_attacks(state)
+
+        # Tell universal.py we handled turn advancement
+        return {"halt_turn_advance": True}
+
+    def _effect_attack(self, state, player, card, effect, action, triggered):
+        """
+        Attack: End turn without drawing, next player draws TWICE.
+        Attacks stack - if already under attack, adds to the count.
+        """
+        # Ensure turnNumber is initialized
+        if state.turnNumber is None:
+            state.turnNumber = 0
+
+        # First advance to next player
         active = _active(state)
         if not active:
-            return
+            return {"halt_turn_advance": True}
+
         ids = [p.id for p in active]
         try:
             idx = ids.index(state.currentTurnPlayerId)
         except ValueError:
             idx = -1
+
         nxt = active[(idx + 1) % len(active)]
         for p in state.players:
             p.isCurrentTurn = p.id == nxt.id
         state.currentTurnPlayerId = nxt.id
         state.turnNumber += 1
-        # New player draws 1 by default; attacks override this
-        nxt.turnCount = 1
 
+        # Then add 2 draws to the new current player
+        current_attacks = state.metadata.get("attacks_pending", 0) or 0
+        state.metadata["attacks_pending"] = current_attacks + 2
 
-def _check_winner(state: GameState) -> Optional[Player]:
-    active = _active(state)
-    if len(active) == 1:
-        return active[0]
-    return None
-
-
-# ── Setup ─────────────────────────────────────────────────────────────────────
-
-def setup_game(state: GameState):
-    """Deal cards and insert Exploding Kittens, then start the game."""
-    raw_defs = state.metadata.get("cardDefinitions", [])
-    card_defs = _parse_card_definitions(raw_defs)
-
-    # Build base deck (exclude exploding & defuse — handled separately)
-    deck = build_deck_from_definitions(card_defs, exclude_ids=["exploding", "defuse"])
-    random.shuffle(deck)
-
-    # One defuse definition for dealing starters
-    defuse_def = next((d for d in card_defs if d.id == "defuse"), None)
-    exploding_def = next((d for d in card_defs if d.id == "exploding"), None)
-
-    n = len(state.players)
-    for i, player in enumerate(state.players):
-        hand_cards: List[Card] = []
-        # Give each player one defuse
-        if defuse_def:
-            hand_cards.append(Card(
-                id=f"defuse_start_{i}",
-                definitionId="defuse",
-                name=defuse_def.name,
-                type=defuse_def.type,
-                subtype="defuse",
-                emoji=defuse_def.emoji,
-                description=defuse_def.description,
-                effects=defuse_def.effects,
-                isPlayable=defuse_def.isPlayable,
-                isReaction=defuse_def.isReaction,
-            ))
-        # Deal remaining hand cards
-        hand_size = max(0, state.rules.handSize - 1)
-        for _ in range(min(hand_size, len(deck))):
-            hand_cards.append(deck.pop())
-
-        player.hand = Hand(playerId=player.id, cards=hand_cards, isVisible=True)
-        player.status = "active"
-        player.isCurrentTurn = i == 0
-        player.turnCount = 1
-
-    # Insert (n-1) Exploding Kittens into the deck
-    if exploding_def:
-        for j in range(n - 1):
-            deck.append(Card(
-                id=f"exploding_{j}",
-                definitionId="exploding",
-                name=exploding_def.name,
-                type=exploding_def.type,
-                subtype="exploding",
-                emoji=exploding_def.emoji,
-                description=exploding_def.description,
-                effects=exploding_def.effects,
-                isPlayable=False,
-                isReaction=False,
-            ))
-    random.shuffle(deck)
-
-    # Extra defuse cards go in the deck
-    extra_defuses = max(0, (defuse_def.count if defuse_def else 6) - n)
-    if defuse_def:
-        for k in range(extra_defuses):
-            deck.append(Card(
-                id=f"defuse_deck_{k}",
-                definitionId="defuse",
-                name=defuse_def.name,
-                type=defuse_def.type,
-                subtype="defuse",
-                emoji=defuse_def.emoji,
-                description=defuse_def.description,
-                effects=defuse_def.effects,
-                isPlayable=defuse_def.isPlayable,
-                isReaction=defuse_def.isReaction,
-            ))
-    random.shuffle(deck)
-
-    state.zones = [
-        Zone(id="draw_pile",    name="Draw Pile",    type="deck",    cards=deck, isPublic=False),
-        Zone(id="discard_pile", name="Discard Pile", type="discard", cards=[],   isPublic=True),
-    ]
-    state.currentTurnPlayerId = state.players[0].id
-    state.turnNumber = 1
-    state.phase = "playing"
-    state.metadata["attacks_pending"] = 0
-    state.metadata["nope_window"] = None          # pending action that can be Noped
-    state.log.append(_log("🎮 Game started! Don't explode. 💣", "system"))
-
-
-# ── Action dispatch ───────────────────────────────────────────────────────────
-
-def apply_action(state: GameState, action) -> Tuple[bool, str, List[str]]:
-    """
-    Main action handler. Returns (success, error, triggered_effects).
-    action is an ActionRequest-like object with .type, .playerId, .cardId,
-    .targetPlayerId, .metadata.
-    """
-    handlers = {
-        "draw_card":      _handle_draw_card,
-        "play_card":      _handle_play_card,
-        "nope":           _handle_nope,
-        "select_target":  _handle_select_target,
-        "insert_exploding": _handle_insert_exploding,
-    }
-    handler = handlers.get(action.type)
-    if handler is None:
-        return False, f"Unknown action: {action.type}", []
-    return handler(state, action)
-
-
-# ── Action handlers ───────────────────────────────────────────────────────────
-
-def _handle_draw_card(state: GameState, action) -> Tuple[bool, str, List[str]]:
-    player = _get_player(state, action.playerId)
-    if not player:
-        return False, "Player not found", []
-    if state.currentTurnPlayerId != player.id:
-        return False, "Not your turn", []
-
-    draw = _draw_zone(state)
-    discard = _discard_zone(state)
-    if not draw or not draw.cards:
-        return False, "Draw pile is empty", []
-
-    triggered: List[str] = []
-    drawn = draw.cards.pop(0)
-
-    if drawn.subtype == "exploding":
-        defuse = next((c for c in player.hand.cards if c.subtype == "defuse"), None)
-        if defuse:
-            # Defused! — player must choose where to reinsert the bomb
-            player.hand.cards.remove(defuse)
-            discard.cards.insert(0, defuse)
-            state.log.append(_log(
-                f"💥 {player.name} drew an Exploding Kitten… and Defused it! 😅",
-                "effect", player.id
-            ))
-            triggered.append("defused")
-            # Store pending reinsert action
-            state.phase = "awaiting_response"
-            state.pendingAction = {
-                "type": "insert_exploding",
-                "playerId": player.id,
-                "card": drawn.dict(),
-                "deckSize": len(draw.cards),
-            }
-            return True, "", triggered
-        else:
-            player.status = "eliminated"
-            discard.cards.insert(0, drawn)
-            state.log.append(_log(f"💥 {player.name} EXPLODED! 😱", "effect", player.id))
-            triggered.append("exploded")
-
-            winner = _check_winner(state)
-            if winner:
-                winner.status = "winner"
-                state.winner = winner
-                state.phase = "ended"
-                state.log.append(_log(f"🎉 {winner.name} wins!", "system"))
-                return True, "", triggered
-
-            _advance_turn(state)
-    else:
-        player.hand.cards.append(drawn)
-        state.log.append(_log(f"{player.name} drew a card.", "action", player.id))
-        _advance_turn(state)
-
-    return True, "", triggered
-
-
-def _handle_insert_exploding(state: GameState, action) -> Tuple[bool, str, List[str]]:
-    """Player places the defused bomb back in the deck at a chosen position."""
-    if state.phase != "awaiting_response":
-        return False, "No pending insert action", []
-    pending = state.pendingAction
-    if not pending or pending.get("type") != "insert_exploding":
-        return False, "No pending insert action", []
-    if action.playerId != pending["playerId"]:
-        return False, "Not your action", []
-
-    draw = _draw_zone(state)
-    bomb_card = Card(**pending["card"])
-    pos = action.metadata.get("position", random.randint(0, len(draw.cards)))
-    pos = max(0, min(pos, len(draw.cards)))
-    draw.cards.insert(pos, bomb_card)
-
-    state.pendingAction = None
-    state.phase = "playing"
-    state.log.append(_log(
-        f"🔧 {action.playerId} reinserted the Exploding Kitten into the deck.", "system"
-    ))
-    _advance_turn(state)
-    return True, "", ["bomb_inserted"]
-
-
-def _handle_play_card(state: GameState, action) -> Tuple[bool, str, List[str]]:
-    player = _get_player(state, action.playerId)
-    if not player:
-        return False, "Player not found", []
-    if state.currentTurnPlayerId != player.id:
-        return False, "Not your turn", []
-    if state.phase not in ("playing",):
-        return False, "Cannot play a card right now", []
-
-    card = next((c for c in player.hand.cards if c.id == action.cardId), None)
-    if not card:
-        return False, "Card not in hand", []
-
-    # Combo detection: check if metadata carries a combo pair
-    combo_pair_id = action.metadata.get("comboPairId")
-    if card.subtype in ("taco", "rainbow", "beard", "potato", "cattermelon") or combo_pair_id:
-        return _handle_cat_combo(state, action, player, card, combo_pair_id)
-
-    discard = _discard_zone(state)
-    player.hand.cards.remove(card)
-    discard.cards.insert(0, card)
-    triggered: List[str] = [f"played:{card.subtype}"]
-
-    subtype = card.subtype
-
-    if subtype == "skip":
-        return _effect_skip(state, player, card, triggered)
-    elif subtype == "attack":
-        return _effect_attack(state, player, card, triggered)
-    elif subtype == "shuffle":
-        return _effect_shuffle(state, player, card, triggered)
-    elif subtype == "see_future":
-        return _effect_see_future(state, player, card, triggered)
-    elif subtype == "favor":
-        return _effect_favor(state, player, card, action, triggered)
-    elif subtype == "alter_future":
-        return _effect_alter_future(state, player, card, triggered)
-    elif subtype == "draw_bottom":
-        return _effect_draw_bottom(state, player, card, triggered)
-    elif subtype == "targeted_attack":
-        return _effect_targeted_attack(state, player, card, action, triggered)
-    else:
-        state.log.append(_log(f"{player.name} played {card.name}.", "action", player.id, card.id))
-        return True, "", triggered
-
-
-def _handle_nope(state: GameState, action) -> Tuple[bool, str, List[str]]:
-    """Play a Nope card to cancel a pending action."""
-    player = _get_player(state, action.playerId)
-    if not player:
-        return False, "Player not found", []
-    if state.phase != "awaiting_response" or not state.pendingAction:
-        return False, "Nothing to Nope", []
-    if state.pendingAction.get("type") == "insert_exploding":
-        return False, "Cannot Nope an exploding kitten defuse", []
-
-    nope_card = next((c for c in player.hand.cards if c.subtype == "nope"), None)
-    if not nope_card:
-        return False, "No Nope card in hand", []
-
-    discard = _discard_zone(state)
-    player.hand.cards.remove(nope_card)
-    discard.cards.insert(0, nope_card)
-
-    # Cancel the pending action
-    cancelled = state.pendingAction.get("type", "action")
-    state.pendingAction = None
-    state.phase = "playing"
-    state.log.append(_log(
-        f"🚫 {player.name} played Nope! {cancelled} was cancelled.", "effect", player.id
-    ))
-    return True, "", [f"noped:{cancelled}"]
-
-
-def _handle_select_target(state: GameState, action) -> Tuple[bool, str, List[str]]:
-    """Resolve a pending action that requires a target (e.g. Favor)."""
-    pending = state.pendingAction
-    if not pending:
-        return False, "No pending action", []
-    if pending.get("playerId") != action.playerId:
-        return False, "Not your pending action", []
-
-    if pending["type"] == "favor":
-        return _resolve_favor(state, action, pending)
-    if pending["type"] == "targeted_attack":
-        return _resolve_targeted_attack(state, action, pending)
-    return False, "Unknown pending action type", []
-
-
-# ── Card effect helpers ───────────────────────────────────────────────────────
-
-def _effect_skip(state, player, card, triggered):
-    state.log.append(_log(f"{player.name} played Skip ⏭️", "action", player.id, card.id))
-    attacks = state.metadata.get("attacks_pending", 0)
-    if attacks > 0:
-        state.metadata["attacks_pending"] = attacks - 1
-    _advance_turn(state)
-    return True, "", triggered
-
-
-def _effect_attack(state, player, card, triggered):
-    state.log.append(_log(
-        f"⚔️ {player.name} played Attack! Next player takes 2 turns.", "action", player.id, card.id
-    ))
-    state.metadata["attacks_pending"] = state.metadata.get("attacks_pending", 0) + 2
-    _advance_turn(state)
-    return True, "", triggered
-
-
-def _effect_shuffle(state, player, card, triggered):
-    draw = _draw_zone(state)
-    random.shuffle(draw.cards)
-    state.log.append(_log(f"🔀 {player.name} shuffled the deck.", "action", player.id, card.id))
-    return True, "", triggered
-
-
-def _effect_see_future(state, player, card, triggered):
-    draw = _draw_zone(state)
-    top3 = [c.name for c in draw.cards[:3]]
-    state.log.append(_log(f"🔮 {player.name} peeked at the top 3 cards.", "action", player.id, card.id))
-    triggered.append(f"top3:{','.join(top3)}")
-    return True, "", triggered
-
-
-def _effect_alter_future(state, player, card, triggered):
-    """NSFW/5-card variant: peek and reorder top 3 cards."""
-    draw = _draw_zone(state)
-    top3 = [c.name for c in draw.cards[:3]]
-    state.log.append(_log(
-        f"✏️ {player.name} used Alter the Future — reordering the top 3 cards.", "action", player.id, card.id
-    ))
-    triggered.append(f"alter_future:{','.join(top3)}")
-    # Frontend sends a follow-up to reorder; for now shuffle top 3
-    top = draw.cards[:3]
-    rest = draw.cards[3:]
-    random.shuffle(top)
-    draw.cards = top + rest
-    return True, "", triggered
-
-
-def _effect_draw_bottom(state, player, card, triggered):
-    draw = _draw_zone(state)
-    discard = _discard_zone(state)
-    if not draw.cards:
-        return False, "Draw pile is empty", []
-    drawn = draw.cards.pop(-1)   # bottom card
-    if drawn.subtype == "exploding":
-        defuse = next((c for c in player.hand.cards if c.subtype == "defuse"), None)
-        if defuse:
-            player.hand.cards.remove(defuse)
-            discard.cards.insert(0, defuse)
-            state.log.append(_log(
-                f"💥 {player.name} drew Exploding Kitten from the bottom… Defused!", "effect", player.id
-            ))
-            triggered.append("defused")
-            pos = random.randint(0, len(draw.cards))
-            draw.cards.insert(pos, drawn)
-            state.pendingAction = {
-                "type": "insert_exploding",
-                "playerId": player.id,
-                "card": drawn.dict(),
-                "deckSize": len(draw.cards),
-            }
-            state.phase = "awaiting_response"
-        else:
-            player.status = "eliminated"
-            discard.cards.insert(0, drawn)
-            state.log.append(_log(f"💥 {player.name} EXPLODED from the bottom! 😱", "effect", player.id))
-            triggered.append("exploded")
-            winner = _check_winner(state)
-            if winner:
-                winner.status = "winner"
-                state.winner = winner
-                state.phase = "ended"
-                state.log.append(_log(f"🎉 {winner.name} wins!", "system"))
-    else:
-        player.hand.cards.append(drawn)
+        card_id = card.id if card and hasattr(card, 'id') else None
         state.log.append(_log(
-            f"{player.name} drew from the bottom.", "action", player.id, card.id
+            f"⚔️ {player.name} played Attack! {nxt.name} must draw {state.metadata['attacks_pending']} times.",
+            "action", player.id, card_id
         ))
-        _advance_turn(state)
-    return True, "", triggered
+        triggered.append("attacked")
 
+        # Tell universal.py we handled turn advancement
+        return {"halt_turn_advance": True}
 
-def _effect_favor(state, player, card, action, triggered):
-    target = _get_player(state, action.targetPlayerId)
-    if target and target.hand.cards:
+    def _effect_give(self, state, player, card, effect, action, triggered):
+        """
+        Favor: Force another player to give you a card.
+
+        Sets up pending action matching universal.py convention:
+        - playerId: requester (who played Favor)
+        - targetPlayerId: giver (who should respond)
+        """
+        # Get target player from action
+        tid = action.targetPlayerId or (action.metadata or {}).get("targetPlayerId")
+        target = _get_player(state, tid) if tid else None
+
+        if not target:
+            # Need to select target first
+            return {"needs_target": True, "pending_type": "give"}
+
+        if not target.hand.cards:
+            state.log.append(_log(
+                f"{player.name} played Favor but {target.name} has no cards.", "action"
+            ))
+            return {"halt_turn_advance": True}
+
         state.log.append(_log(
-            f"🙏 {player.name} used Favor on {target.name}.", "action", player.id, card.id
+            f"🙏 {player.name} asks {target.name} for a card.",
+            "action", player.id, card.id,
         ))
-        # Requires target to pick a card — store pending
+
+        # Set up pending action (using universal.py convention)
+        # Frontend checks targetPlayerId to determine who should respond
+        state.phase = "awaiting_response"
         state.pendingAction = {
             "type": "favor",
-            "playerId": player.id,
-            "targetPlayerId": target.id,
+            "playerId": player.id,      # Requester (who played Favor)
+            "targetPlayerId": target.id, # Responder (who should give card)
         }
-        state.phase = "awaiting_response"
-        triggered.append("favor_pending")
-    else:
-        state.log.append(_log(f"{player.name} played Favor — target has no cards.", "action"))
-    return True, "", triggered
+        triggered.append("give_pending")
+
+        # Don't advance turn - requester continues their turn after receiving card
+        return {"halt_turn_advance": True}
+
+    def _effect_shuffle(self, state, player, card, effect, action, triggered):
+        """
+        Shuffle: Shuffle the draw pile.
+
+        IMPORTANT: Does NOT end turn in EK!
+        """
+        draw = _draw_zone(state)
+        if draw:
+            random.shuffle(draw.cards)
+
+        state.log.append(_log(
+            f"🔀 {player.name} shuffled the deck.",
+            "action", player.id, card.id
+        ))
+        triggered.append("shuffled")
+
+        # Don't advance turn - player can continue playing
+        return {"halt_turn_advance": True}
+
+    def _effect_peek(self, state, player, card, effect, action, triggered):
+        """
+        See the Future: Peek at top 3 cards.
+
+        IMPORTANT: Does NOT end turn in EK!
+        """
+        n = effect.get("value", 3)
+        draw = _draw_zone(state)
+
+        if draw and draw.cards:
+            # Get the top N cards
+            top_cards = draw.cards[:n]
+
+            # Store full card information in player metadata for frontend display
+            player.metadata["peekedCards"] = [c.model_dump() for c in top_cards]
+
+            # Also store card names for logging
+            top_n_names = [c.name for c in top_cards]
+
+            state.log.append(_log(
+                f"🔮 {player.name} peeked at the top {n} cards.",
+                "action", player.id, card.id
+            ))
+            triggered.append(f"top{n}:{','.join(top_n_names)}")
+        else:
+            state.log.append(_log(
+                f"🔮 {player.name} tried to peek but the deck is empty.",
+                "action", player.id, card.id
+            ))
+
+        # Don't advance turn - player can continue playing
+        return {"halt_turn_advance": True}
+
+    def _effect_steal(self, state, player, card, effect, action, triggered):
+        """
+        Cat Combo: Steal a random card from another player.
+
+        IMPORTANT: Does NOT end turn in EK!
+        """
+        tid = action.targetPlayerId or (action.metadata or {}).get("targetPlayerId")
+        target = _get_player(state, tid) if tid else None
+
+        if not target or not target.hand.cards:
+            state.log.append(_log(
+                f"{player.name} played a combo but target has no cards.", "action"
+            ))
+            return {"halt_turn_advance": True}
+
+        # Steal random card
+        stolen = random.choice(target.hand.cards)
+        target.hand.cards.remove(stolen)
+        player.hand.cards.append(stolen)
+
+        state.log.append(_log(
+            f"🐱 {player.name} stole a card from {target.name}!",
+            "action", player.id, card.id
+        ))
+        triggered.append(f"stolen:{target.id}")
+
+        # Don't advance turn - player can continue playing
+        return {"halt_turn_advance": True}
+
+    # -------------------------------------------------------------------------
+    # Turn Management
+    # -------------------------------------------------------------------------
+
+    def _advance_turn_with_attacks(self, state: GameState):
+        """
+        Advance turn, respecting attack stacks.
+        If player has pending attacks, decrement but keep their turn.
+        Otherwise, advance to next player.
+        """
+        # Ensure turnNumber is initialized
+        if state.turnNumber is None:
+            state.turnNumber = 0
+
+        attacks = state.metadata.get("attacks_pending", 0) or 0
+
+        if attacks > 0:
+            # Decrement first
+            attacks -= 1
+            state.metadata["attacks_pending"] = attacks
+
+            if attacks > 0:
+                # Player still has more draws to make
+                return  # Don't change current player
+            # If attacks is now 0, fall through to advance turn
+
+        # Normal turn advancement
+        active = _active(state)
+        if not active:
+            return
+
+        ids = [p.id for p in active]
+        try:
+            idx = ids.index(state.currentTurnPlayerId)
+        except ValueError:
+            idx = -1
+
+        nxt = active[(idx + 1) % len(active)]
+        for p in state.players:
+            p.isCurrentTurn = p.id == nxt.id
+        state.currentTurnPlayerId = nxt.id
+        state.turnNumber += 1
+
+    # -------------------------------------------------------------------------
+    # Lifecycle Hooks
+    # -------------------------------------------------------------------------
+
+    def on_game_start(self, state: GameState) -> None:
+        """Initialize attack tracking metadata."""
+        state.metadata["attacks_pending"] = 0
+
+    def on_card_played(self, state: GameState, player: Player, card: Card) -> Optional[Dict[str, Any]]:
+        """
+        Called when a card is played.
+
+        IMPORTANT: In Exploding Kittens, playing cards does NOT end your turn.
+        Players can play as many cards as they want before drawing.
+        Only drawing, Skip, or Attack ends your turn.
+
+        Return metadata to prevent universal.py from advancing turn automatically.
+        """
+        # Prevent automatic turn advancement for ALL cards
+        # Turn only advances when:
+        # 1. Player draws a card (handled in _handle_draw_card)
+        # 2. Player plays Skip (handled in _effect_skip)
+        # 3. Player plays Attack (handled in _effect_attack)
+        return {"halt_turn_advance": True}
 
 
-def _resolve_favor(state, action, pending):
-    """Target player selects a card to give."""
-    target = _get_player(state, action.playerId)
-    requester = _get_player(state, pending["playerId"])
-    if not target or not requester:
-        return False, "Player not found", []
-
-    card_id = action.metadata.get("cardId") or action.cardId
-    card = next((c for c in target.hand.cards if c.id == card_id), None)
-    if not card:
-        # Auto-pick random card
-        if not target.hand.cards:
-            return False, "No cards to give", []
-        card = random.choice(target.hand.cards)
-
-    target.hand.cards.remove(card)
-    requester.hand.cards.append(card)
-    state.pendingAction = None
-    state.phase = "playing"
-    state.log.append(_log(
-        f"🎁 {target.name} gave {requester.name} a card.", "effect", target.id
-    ))
-    return True, "", ["favor_resolved"]
-
-
-def _effect_targeted_attack(state, player, card, action, triggered):
-    """Force a chosen player to take 2 turns."""
-    target = _get_player(state, action.targetPlayerId)
-    if not target:
-        state.pendingAction = {
-            "type": "targeted_attack",
-            "playerId": player.id,
-        }
-        state.phase = "awaiting_response"
-        triggered.append("targeted_attack_pending")
-        return True, "", triggered
-
-    state.log.append(_log(
-        f"🎯 {player.name} targeted {target.name}! They take 2 turns.", "action", player.id, card.id
-    ))
-    state.metadata["attacks_pending"] = 2
-    # Force turn to target
-    for p in state.players:
-        p.isCurrentTurn = p.id == target.id
-    state.currentTurnPlayerId = target.id
-    state.turnNumber += 1
-    target.turnCount = 2
-    triggered.append(f"targeted:{target.id}")
-    return True, "", triggered
-
-
-def _resolve_targeted_attack(state, action, pending):
-    player = _get_player(state, pending["playerId"])
-    target = _get_player(state, action.metadata.get("targetPlayerId") or action.targetPlayerId)
-    if not player or not target:
-        return False, "Player not found", []
-    state.metadata["attacks_pending"] = 2
-    for p in state.players:
-        p.isCurrentTurn = p.id == target.id
-    state.currentTurnPlayerId = target.id
-    state.turnNumber += 1
-    state.pendingAction = None
-    state.phase = "playing"
-    state.log.append(_log(
-        f"🎯 {player.name} targeted {target.name}! They take 2 turns.", "effect", player.id
-    ))
-    return True, "", [f"targeted:{target.id}"]
-
-
-def _handle_cat_combo(state, action, player, card, combo_pair_id):
-    """Handle 2-cat combo (steal random card) or 3-cat combo (demand specific card)."""
-    pair = next(
-        (c for c in player.hand.cards
-         if c.id == combo_pair_id and c.subtype == card.subtype and c.id != card.id),
-        None,
-    )
-    if not pair:
-        return False, "No matching cat card for combo", []
-
-    discard = _discard_zone(state)
-    player.hand.cards.remove(card)
-    player.hand.cards.remove(pair)
-    discard.cards.insert(0, card)
-    discard.cards.insert(0, pair)
-
-    target = _get_player(state, action.targetPlayerId)
-    if not target or not target.hand.cards:
-        state.log.append(_log(f"{player.name} played a cat combo but the target has no cards.", "action"))
-        return True, "", ["combo:no_steal"]
-
-    stolen = random.choice(target.hand.cards)
-    target.hand.cards.remove(stolen)
-    player.hand.cards.append(stolen)
-    state.log.append(_log(
-        f"🐱 {player.name} played a cat combo and stole a card from {target.name}!",
-        "action", player.id
-    ))
-    return True, "", [f"combo_steal:{target.id}"]
+# Factory function to create plugin instance
+def create_plugin(game_config: Dict[str, Any]) -> ExplodingKittensPlugin:
+    """Create and return an Exploding Kittens plugin instance."""
+    return ExplodingKittensPlugin("exploding_kittens", game_config)
