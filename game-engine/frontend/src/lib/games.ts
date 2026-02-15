@@ -1,5 +1,7 @@
 // Game catalogue — maps numeric IDs to game metadata
 
+import type { GameInfo } from '@/types/game';
+
 export interface GameConfig {
   id: number;
   name: string;
@@ -9,6 +11,7 @@ export interface GameConfig {
   accentColorRgb: string;
   playerCount: string;
   gameType: string; // maps to backend game_type
+  source: 'backend' | 'custom'; // where this entry came from
 }
 
 // ── Accent color palette for AI-generated games ─────────────────────────────
@@ -24,6 +27,14 @@ const GENERATED_COLORS = [
 ];
 
 const GENERATED_EMOJIS = ['🎲', '🃏', '✨', '🎯', '🧩', '🎪', '🌀'];
+
+// ── Hex → RGB helper ────────────────────────────────────────────────────────
+
+function hexToRgb(hex: string): string {
+  const h = hex.replace('#', '');
+  const n = parseInt(h, 16);
+  return `${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}`;
+}
 
 // ── localStorage persistence for custom games ───────────────────────────────
 
@@ -57,8 +68,31 @@ if (typeof window !== 'undefined') {
   const custom = loadCustomGames();
   for (const g of custom) {
     if (!GAMES.some((x) => x.gameType === g.gameType)) {
-      GAMES.push(g);
+      GAMES.push({ ...g, source: g.source ?? 'custom' });
     }
+  }
+}
+
+// ── Merge backend-discovered games into the catalogue ───────────────────────
+
+export function mergeBackendGames(backendGames: GameInfo[]): void {
+  for (const bg of backendGames) {
+    if (GAMES.some((g) => g.gameType === bg.id)) continue; // already present (e.g. custom)
+
+    const nextId = Math.max(...GAMES.map((g) => g.id), -1) + 1;
+    const color = bg.themeColor || '#C9A84C';
+
+    GAMES.push({
+      id: nextId,
+      name: bg.name,
+      description: bg.description || 'A card game.',
+      emoji: bg.emoji || '🎲',
+      accentColor: color,
+      accentColorRgb: hexToRgb(color),
+      playerCount: bg.playerCount || '2–6 players',
+      gameType: bg.id,
+      source: 'backend',
+    });
   }
 }
 
@@ -86,12 +120,13 @@ export function addGame(
     accentColorRgb: color.rgb,
     playerCount: '2–6 players',
     gameType,
+    source: 'custom',
   };
 
   GAMES.push(game);
 
-  // Persist all games to localStorage
-  saveCustomGames([...GAMES]);
+  // Persist custom games to localStorage (don't persist backend games)
+  saveCustomGames(GAMES.filter((g) => g.source === 'custom'));
 
   return game;
 }
