@@ -21,6 +21,7 @@ image = (
         "pydantic>=2.10.0",
         "pydantic-settings>=2.7.0",
         "python-dotenv>=1.0.0",
+        "supabase>=2.9.1",
     )
     .add_local_dir("app", remote_path="/root/app")
 )
@@ -32,7 +33,10 @@ app = modal.App("boardify", image=image)
 # Serve the FastAPI app through Modal
 # ---------------------------------------------------------------------------
 @app.function(
-    secrets=[modal.Secret.from_name("perplexity-secret")],
+    secrets=[
+        modal.Secret.from_name("perplexity-secret"),
+        modal.Secret.from_name("supabase-secret"),
+    ],
     timeout=180,
 )
 @modal.asgi_app()

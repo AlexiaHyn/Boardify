@@ -16,6 +16,8 @@ class Settings(BaseSettings):
 
     # Perplexity – injected by Modal Secret at runtime
     PERPLEXITY_API_KEY: str = ""
+    SUPABASE_URL: str = ""
+    SUPABASE_SERVICE_ROLE_KEY: str = ""
 
     model_config = {"env_file": ".env", "extra": "ignore"}
 
