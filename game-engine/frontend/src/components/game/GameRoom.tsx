@@ -210,7 +210,7 @@ export function GameRoom({ roomCode, playerId, initialState }: GameRoomProps) {
       {/* Header */}
       <header className="flex items-center justify-between px-6 py-3 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
         <div className="flex items-center gap-3">
-          <span className="text-xl">&#9824;</span>
+          <span className="text-xl">♠</span>
           <span className="font-display font-semibold text-lg tracking-wide text-[var(--color-cream)]">{gameState.gameName}</span>
           <span className="bg-[var(--color-gold-muted)] rounded-full px-3 py-0.5 text-xs font-mono text-[var(--color-gold)]">
             {gameState.roomCode}
@@ -256,7 +256,7 @@ export function GameRoom({ roomCode, playerId, initialState }: GameRoomProps) {
               color: 'var(--color-crimson-bright)',
             }}
           >
-            &#9888;&#65039; {error}
+            ⚠️ {error}
           </div>
         )}
       </main>
@@ -341,7 +341,7 @@ function GameOverScreen({
   return (
     <div className="min-h-screen bg-[var(--color-bg-deep)] flex items-center justify-center p-4">
       <div className="w-full max-w-md text-center animate-fade-in-up">
-        <div className="text-7xl mb-6">{isWinner ? '&#127942;' : '&#128165;'}</div>
+        <div className="text-7xl mb-6">{isWinner ? '🏆' : '💥'}</div>
         <h1 className="font-display text-4xl font-semibold tracking-wide text-[var(--color-cream)] mb-2">
           {isWinner ? 'You Won!' : 'Game Over'}
         </h1>
