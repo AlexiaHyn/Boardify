@@ -35,7 +35,15 @@ export function GameCard({
 }: CardProps) {
   const [hovered, setHovered] = useState(false);
 
-  const colors = TYPE_COLORS[faceDown ? 'hidden' : card.type] ?? TYPE_COLORS.action;
+  const meta = card.metadata as Record<string, unknown> | undefined;
+  const borderColor = !faceDown ? (meta?.borderColor as string | undefined) : undefined;
+  const cardBg = !faceDown ? (meta?.cardBg as string | undefined) : undefined;
+  const hasCustomColor = !!borderColor;
+  const colors = faceDown
+    ? TYPE_COLORS.hidden
+    : !hasCustomColor
+      ? (TYPE_COLORS[card.type] ?? TYPE_COLORS.action)
+      : '';
   const isHidden = faceDown || card.type === 'hidden';
 
   const handleClick = () => {
@@ -65,11 +73,12 @@ export function GameCard({
   return (
     <div
       className={`
-        relative ${w} ${h} rounded-xl border-2 bg-gradient-to-br ${colors}
+        relative ${w} ${h} rounded-xl ${hasCustomColor ? 'border-[3px]' : 'border-2 bg-gradient-to-br'} ${colors}
         ${ring} ${opacity} ${cursor} ${scale}
         transition-all duration-200 ease-out select-none
-        shadow-lg flex flex-col items-center justify-between p-2
+        ${hasCustomColor ? 'shadow-md' : 'shadow-lg'} flex flex-col items-center justify-between p-2
       `}
+      style={hasCustomColor ? { borderColor, backgroundColor: cardBg } : undefined}
       onClick={handleClick}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
