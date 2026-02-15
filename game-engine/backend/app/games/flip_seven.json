@@ -1,0 +1,639 @@
+{
+  "id": "flip_seven",
+  "name": "Flip Seven",
+  "description": "A card game where players try to collect seven unique numbers or score points without busting.",
+  "version": "1.0.0",
+  "themeColor": "#8B5CF6",
+  "backgroundEmoji": "\ud83c\udfb2",
+  "rules": {
+    "minPlayers": 2,
+    "maxPlayers": 6,
+    "handSize": 1,
+    "turnStructure": {
+      "phases": [
+        {
+          "id": "decision",
+          "name": "Hit or Stay",
+          "description": "Choose to take another card or stay with your current hand.",
+          "isOptional": false
+        }
+      ],
+      "canPassTurn": false,
+      "mustPlayCard": false,
+      "drawCount": 0
+    },
+    "winCondition": {
+      "type": "target_score",
+      "description": "First player to reach 200 points wins!",
+      "metadata": {
+        "targetScore": 200
+      }
+    },
+    "specialRules": [
+      {
+        "id": "bust_rule",
+        "name": "Bust on Duplicate Numbers",
+        "trigger": "on_draw",
+        "description": "If you draw a number you already have, you bust and score 0 for the round."
+      },
+      {
+        "id": "flip_seven_bonus",
+        "name": "Flip Seven Bonus",
+        "trigger": "on_draw",
+        "description": "Getting exactly 7 unique numbers gives +15 bonus points and ends the round."
+      },
+      {
+        "id": "modifier_stacking",
+        "name": "Modifier Cards",
+        "trigger": "on_draw",
+        "description": "Modifier cards (+2, +4, +6, +8, +10, x2) are placed above number cards and applied during scoring."
+      }
+    ]
+  },
+  "config": {
+    "matchColor": false,
+    "matchNumber": false,
+    "matchType": false,
+    "wildAlwaysPlayable": false,
+    "stackableDraw": false,
+    "reverseEqualsSkipTwoPlayers": false,
+    "startWithDiscard": false,
+    "excludeFromStartDiscard": [],
+    "drawUntilPlayable": false,
+    "zones": [
+      {
+        "id": "draw_pile",
+        "name": "Draw Pile",
+        "type": "deck",
+        "isPublic": false
+      },
+      {
+        "id": "discard_pile",
+        "name": "Discard Pile",
+        "type": "discard",
+        "isPublic": false
+      }
+    ],
+    "defaultActions": [
+      {
+        "id": "hit",
+        "label": "Hit \ud83c\udfaf",
+        "icon": "\ud83c\udfaf",
+        "description": "Draw another card",
+        "actionType": "draw_card",
+        "showCondition": {
+          "type": "compound",
+          "all": [
+            {
+              "type": "is_current_turn"
+            },
+            {
+              "type": "metadata_equals",
+              "key": "playerStatus",
+              "value": "active"
+            }
+          ]
+        },
+        "color": "blue",
+        "inputType": "button"
+      },
+      {
+        "id": "stay",
+        "label": "Stay \ud83d\uded1",
+        "icon": "\ud83d\uded1",
+        "description": "Keep your current hand and score",
+        "actionType": "stay",
+        "showCondition": {
+          "type": "compound",
+          "all": [
+            {
+              "type": "is_current_turn"
+            },
+            {
+              "type": "metadata_equals",
+              "key": "playerStatus",
+              "value": "active"
+            },
+            {
+              "type": "has_cards_in_hand"
+            }
+          ]
+        },
+        "color": "red",
+        "inputType": "button"
+      },
+      {
+        "id": "target_player",
+        "label": "Choose Target",
+        "icon": "\ud83c\udfaf",
+        "description": "Choose a player to target with action card",
+        "actionType": "select_target",
+        "showCondition": {
+          "type": "metadata_equals",
+          "key": "awaitingTarget",
+          "value": true
+        },
+        "color": "yellow",
+        "inputType": "choice",
+        "inputConfig": {
+          "label": "Choose target player",
+          "metadataChoicesKey": "availableTargets"
+        }
+      }
+    ]
+  },
+  "cards": [
+    {
+      "id": "number_1",
+      "name": "Number 1",
+      "type": "number",
+      "subtype": "number",
+      "emoji": "1\ufe0f\u20e3",
+      "description": "Number card with value 1",
+      "effects": [
+        {
+          "type": "number",
+          "value": 1,
+          "target": "self",
+          "description": "Adds 1 to your sum",
+          "metadata": {
+            "number": 1
+          }
+        }
+      ],
+      "isPlayable": false,
+      "isReaction": false,
+      "count": 6,
+      "metadata": {
+        "number": 1,
+        "points": 1
+      }
+    },
+    {
+      "id": "number_2",
+      "name": "Number 2",
+      "type": "number",
+      "subtype": "number",
+      "emoji": "2\ufe0f\u20e3",
+      "description": "Number card with value 2",
+      "effects": [
+        {
+          "type": "number",
+          "value": 2,
+          "target": "self",
+          "description": "Adds 2 to your sum",
+          "metadata": {
+            "number": 2
+          }
+        }
+      ],
+      "isPlayable": false,
+      "isReaction": false,
+      "count": 6,
+      "metadata": {
+        "number": 2,
+        "points": 2
+      }
+    },
+    {
+      "id": "number_3",
+      "name": "Number 3",
+      "type": "number",
+      "subtype": "number",
+      "emoji": "3\ufe0f\u20e3",
+      "description": "Number card with value 3",
+      "effects": [
+        {
+          "type": "number",
+          "value": 3,
+          "target": "self",
+          "description": "Adds 3 to your sum",
+          "metadata": {
+            "number": 3
+          }
+        }
+      ],
+      "isPlayable": false,
+      "isReaction": false,
+      "count": 6,
+      "metadata": {
+        "number": 3,
+        "points": 3
+      }
+    },
+    {
+      "id": "number_4",
+      "name": "Number 4",
+      "type": "number",
+      "subtype": "number",
+      "emoji": "4\ufe0f\u20e3",
+      "description": "Number card with value 4",
+      "effects": [
+        {
+          "type": "number",
+          "value": 4,
+          "target": "self",
+          "description": "Adds 4 to your sum",
+          "metadata": {
+            "number": 4
+          }
+        }
+      ],
+      "isPlayable": false,
+      "isReaction": false,
+      "count": 6,
+      "metadata": {
+        "number": 4,
+        "points": 4
+      }
+    },
+    {
+      "id": "number_5",
+      "name": "Number 5",
+      "type": "number",
+      "subtype": "number",
+      "emoji": "5\ufe0f\u20e3",
+      "description": "Number card with value 5",
+      "effects": [
+        {
+          "type": "number",
+          "value": 5,
+          "target": "self",
+          "description": "Adds 5 to your sum",
+          "metadata": {
+            "number": 5
+          }
+        }
+      ],
+      "isPlayable": false,
+      "isReaction": false,
+      "count": 6,
+      "metadata": {
+        "number": 5,
+        "points": 5
+      }
+    },
+    {
+      "id": "number_6",
+      "name": "Number 6",
+      "type": "number",
+      "subtype": "number",
+      "emoji": "6\ufe0f\u20e3",
+      "description": "Number card with value 6",
+      "effects": [
+        {
+          "type": "number",
+          "value": 6,
+          "target": "self",
+          "description": "Adds 6 to your sum",
+          "metadata": {
+            "number": 6
+          }
+        }
+      ],
+      "isPlayable": false,
+      "isReaction": false,
+      "count": 6,
+      "metadata": {
+        "number": 6,
+        "points": 6
+      }
+    },
+    {
+      "id": "number_7",
+      "name": "Number 7",
+      "type": "number",
+      "subtype": "number",
+      "emoji": "7\ufe0f\u20e3",
+      "description": "Number card with value 7",
+      "effects": [
+        {
+          "type": "number",
+          "value": 7,
+          "target": "self",
+          "description": "Adds 7 to your sum",
+          "metadata": {
+            "number": 7
+          }
+        }
+      ],
+      "isPlayable": false,
+      "isReaction": false,
+      "count": 6,
+      "metadata": {
+        "number": 7,
+        "points": 7
+      }
+    },
+    {
+      "id": "plus_2",
+      "name": "+2",
+      "type": "special",
+      "subtype": "modifier",
+      "emoji": "\u2795",
+      "description": "Adds 2 to the sum of number cards",
+      "effects": [
+        {
+          "type": "score",
+          "value": 2,
+          "target": "self",
+          "description": "Adds 2 bonus points",
+          "metadata": {
+            "modifier": true,
+            "bonus": 2
+          }
+        }
+      ],
+      "isPlayable": false,
+      "isReaction": false,
+      "count": 4,
+      "metadata": {
+        "modifier": true,
+        "bonus": 2,
+        "points": 2
+      }
+    },
+    {
+      "id": "plus_4",
+      "name": "+4",
+      "type": "special",
+      "subtype": "modifier",
+      "emoji": "\u2795",
+      "description": "Adds 4 to the sum of number cards",
+      "effects": [
+        {
+          "type": "score",
+          "value": 4,
+          "target": "self",
+          "description": "Adds 4 bonus points",
+          "metadata": {
+            "modifier": true,
+            "bonus": 4
+          }
+        }
+      ],
+      "isPlayable": false,
+      "isReaction": false,
+      "count": 4,
+      "metadata": {
+        "modifier": true,
+        "bonus": 4,
+        "points": 4
+      }
+    },
+    {
+      "id": "plus_6",
+      "name": "+6",
+      "type": "special",
+      "subtype": "modifier",
+      "emoji": "\u2795",
+      "description": "Adds 6 to the sum of number cards",
+      "effects": [
+        {
+          "type": "score",
+          "value": 6,
+          "target": "self",
+          "description": "Adds 6 bonus points",
+          "metadata": {
+            "modifier": true,
+            "bonus": 6
+          }
+        }
+      ],
+      "isPlayable": false,
+      "isReaction": false,
+      "count": 4,
+      "metadata": {
+        "modifier": true,
+        "bonus": 6,
+        "points": 6
+      }
+    },
+    {
+      "id": "plus_8",
+      "name": "+8",
+      "type": "special",
+      "subtype": "modifier",
+      "emoji": "\u2795",
+      "description": "Adds 8 to the sum of number cards",
+      "effects": [
+        {
+          "type": "score",
+          "value": 8,
+          "target": "self",
+          "description": "Adds 8 bonus points",
+          "metadata": {
+            "modifier": true,
+            "bonus": 8
+          }
+        }
+      ],
+      "isPlayable": false,
+      "isReaction": false,
+      "count": 4,
+      "metadata": {
+        "modifier": true,
+        "bonus": 8,
+        "points": 8
+      }
+    },
+    {
+      "id": "plus_10",
+      "name": "+10",
+      "type": "special",
+      "subtype": "modifier",
+      "emoji": "\u2795",
+      "description": "Adds 10 to the sum of number cards",
+      "effects": [
+        {
+          "type": "score",
+          "value": 10,
+          "target": "self",
+          "description": "Adds 10 bonus points",
+          "metadata": {
+            "modifier": true,
+            "bonus": 10
+          }
+        }
+      ],
+      "isPlayable": false,
+      "isReaction": false,
+      "count": 4,
+      "metadata": {
+        "modifier": true,
+        "bonus": 10,
+        "points": 10
+      }
+    },
+    {
+      "id": "times_2",
+      "name": "x2",
+      "type": "special",
+      "subtype": "multiplier",
+      "emoji": "\u2716\ufe0f",
+      "description": "Doubles the sum of number cards",
+      "effects": [
+        {
+          "type": "score",
+          "value": 2,
+          "target": "self",
+          "description": "Doubles number card sum",
+          "metadata": {
+            "multiplier": true,
+            "factor": 2
+          }
+        }
+      ],
+      "isPlayable": false,
+      "isReaction": false,
+      "count": 4,
+      "metadata": {
+        "multiplier": true,
+        "factor": 2,
+        "points": 0
+      }
+    },
+    {
+      "id": "freeze",
+      "name": "Freeze",
+      "type": "action",
+      "subtype": "freeze",
+      "emoji": "\ud83e\uddca",
+      "description": "Target player must stay immediately",
+      "effects": [
+        {
+          "type": "any",
+          "target": "choose_player",
+          "description": "Force target to stay and bank their score",
+          "metadata": {
+            "requiresTarget": true,
+            "autoStay": true
+          }
+        }
+      ],
+      "isPlayable": false,
+      "isReaction": false,
+      "count": 6,
+      "metadata": {
+        "requiresTarget": true,
+        "actionCard": true
+      }
+    },
+    {
+      "id": "flip_three",
+      "name": "Flip Three",
+      "type": "action",
+      "subtype": "flip_three",
+      "emoji": "\ud83c\udfb2",
+      "description": "Target player draws 3 cards one by one",
+      "effects": [
+        {
+          "type": "draw",
+          "value": 3,
+          "target": "choose_player",
+          "description": "Target draws 3 cards sequentially",
+          "metadata": {
+            "requiresTarget": true,
+            "sequential": true
+          }
+        }
+      ],
+      "isPlayable": false,
+      "isReaction": false,
+      "count": 6,
+      "metadata": {
+        "requiresTarget": true,
+        "actionCard": true
+      }
+    },
+    {
+      "id": "second_chance",
+      "name": "Second Chance",
+      "type": "defense",
+      "subtype": "second_chance",
+      "emoji": "\ud83d\udd04",
+      "description": "Avoid bust from duplicate number card",
+      "effects": [
+        {
+          "type": "defuse",
+          "target": "self",
+          "description": "Discard duplicate and continue playing",
+          "metadata": {
+            "autoplay": true,
+            "bustProtection": true
+          }
+        }
+      ],
+      "isPlayable": false,
+      "isReaction": true,
+      "count": 6,
+      "metadata": {
+        "autoplay": true,
+        "bustProtection": true
+      }
+    }
+  ],
+  "ui": {
+    "tableBackground": "#166534",
+    "cardBack": "\ud83c\udfb2",
+    "deckLabel": "Draw Pile",
+    "discardLabel": "Discard Pile",
+    "turnPrompt": "Hit for another card or Stay to bank your score",
+    "waitPrompt": "Waiting for {playerName}\u2026",
+    "winMessage": "\ud83c\udf89 {playerName} wins with {score} points!",
+    "eliminatedMessage": "\ud83d\udca5 {playerName} busted!",
+    "actionLabels": {
+      "draw_card": "Hit \ud83c\udfaf",
+      "stay": "Stay \ud83d\uded1",
+      "select_target": "Choose Target \ud83c\udfaf"
+    },
+    "specialPrompts": {
+      "action_card_target": "Choose a player to target with this action card",
+      "freeze_target": "Choose a player to freeze (force to stay)",
+      "flip_three_target": "Choose a player to flip 3 cards for",
+      "bust_message": "{playerName} busted with a duplicate number!",
+      "flip_seven_bonus": "{playerName} got Flip Seven! +15 bonus points!",
+      "round_end": "Round over! Calculating scores...",
+      "new_round": "New round starting. {dealerName} is dealing."
+    },
+    "layout": {
+      "hideDrawPile": false,
+      "hideDiscardPile": true,
+      "showZones": [],
+      "showScoreboard": true,
+      "primaryActionArea": "buttons"
+    },
+    "playerDisplayFields": [
+      {
+        "key": "totalScore",
+        "label": "Score",
+        "icon": "\ud83c\udfc6",
+        "format": "number",
+        "defaultValue": 0
+      },
+      {
+        "key": "roundScore",
+        "label": "Round",
+        "icon": "\ud83c\udfb2",
+        "format": "number",
+        "defaultValue": 0
+      }
+    ],
+    "gameDisplayFields": [
+      {
+        "key": "round",
+        "label": "Round",
+        "icon": "\ud83c\udfaf",
+        "format": "number",
+        "defaultValue": 1
+      },
+      {
+        "key": "dealer",
+        "label": "Dealer",
+        "icon": "\ud83c\udccf",
+        "format": "text",
+        "defaultValue": ""
+      }
+    ]
+  }
+}

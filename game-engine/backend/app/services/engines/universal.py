@@ -83,11 +83,19 @@ def _log(msg: str, type_: str = "action",
 
 
 def _draw_zone(state: GameState) -> Optional[Zone]:
-    return next((z for z in state.zones if z.id == "draw_pile"), None)
+    # Try by id first, fall back to type == "deck"
+    z = next((z for z in state.zones if z.id == "draw_pile"), None)
+    if z is None:
+        z = next((z for z in state.zones if z.type == "deck"), None)
+    return z
 
 
 def _discard_zone(state: GameState) -> Optional[Zone]:
-    return next((z for z in state.zones if z.id == "discard_pile"), None)
+    # Try by id first, fall back to type == "discard"
+    z = next((z for z in state.zones if z.id == "discard_pile"), None)
+    if z is None:
+        z = next((z for z in state.zones if z.type == "discard"), None)
+    return z
 
 
 def _active(state: GameState) -> List[Player]:
@@ -140,10 +148,122 @@ def _advance_turn(state: GameState, skip: int = 0):
     nxt = _peek_next(state, skip=skip)
     if not nxt:
         return
+
+    # Track who has acted this betting/action round
+    acted = state.metadata.setdefault("roundActedPlayers", [])
+    current_pid = state.currentTurnPlayerId
+    if current_pid not in acted:
+        acted.append(current_pid)
+
+    # Check if all active players have acted this round
+    active_ids = {p.id for p in _active(state)}
+    all_acted = active_ids.issubset(set(acted))
+
+    if all_acted:
+        # Full round complete — check for roundActions
+        _execute_round_actions(state)
+        # Reset acted tracking for next round
+        state.metadata["roundActedPlayers"] = []
+        # If round actions ended the game, don't advance further
+        if state.phase == "ended":
+            return
+
     for p in state.players:
         p.isCurrentTurn = p.id == nxt.id
     state.currentTurnPlayerId = nxt.id
     state.turnNumber += 1
+
+
+def _deal_to_zone(state: GameState, zone_id: str, count: int) -> List[Card]:
+    """Deal cards from the draw pile to a named zone (e.g. community cards)."""
+    draw = _draw_zone(state)
+    target = next((z for z in state.zones if z.id == zone_id), None)
+    if not draw or not target:
+        return []
+    _ensure_draw_cards(state, count)
+    dealt = []
+    for _ in range(count):
+        if not draw.cards:
+            break
+        card = draw.cards.pop(0)
+        target.cards.append(card)
+        dealt.append(card)
+    return dealt
+
+
+def _execute_round_actions(state: GameState):
+    """
+    Execute the next set of roundActions from the game config.
+    roundActions is an array of phases; each phase has an array of actions.
+    We track the current phase index in state.metadata.roundPhase.
+    """
+    cfg = _cfg(state)
+    round_actions = cfg.get("roundActions", [])
+    if not round_actions:
+        return
+
+    phase_idx = state.metadata.get("roundPhase", 0)
+    if phase_idx >= len(round_actions):
+        return  # All phases exhausted
+
+    phase = round_actions[phase_idx]
+    actions = phase.get("actions", [])
+
+    for act in actions:
+        act_type = act.get("type")
+
+        if act_type == "burn_card":
+            # Burn a card face-down (proper poker rule: burn before community deals)
+            draw = _draw_zone(state)
+            if draw and draw.cards:
+                _ensure_draw_cards(state, 1)
+                burned = draw.cards.pop(0)
+                # Put burned card in a hidden burn zone if it exists, else just discard
+                burn_zone = next((z for z in state.zones if z.id == "burn"), None)
+                if burn_zone:
+                    burn_zone.cards.append(burned)
+                state.log.append(_log("A card is burned face-down.", "system"))
+
+        elif act_type == "deal_to_zone":
+            zone_id = act.get("zone", "")
+            count = act.get("count", 1)
+            dealt = _deal_to_zone(state, zone_id, count)
+            msg = act.get("message", "")
+            if msg and dealt:
+                card_names = ", ".join(f"{c.emoji or ''} {c.name}" for c in dealt)
+                msg = msg.replace("{cards}", card_names).replace("{card}", card_names)
+                state.log.append(_log(msg, "system"))
+            elif dealt:
+                state.log.append(_log(f"Dealt {len(dealt)} card{'s' if len(dealt) != 1 else ''} to {zone_id}.", "system"))
+
+        elif act_type == "reset_bets":
+            # Reset per-round betting state
+            state.metadata["currentBet"] = 0
+            player_data = state.metadata.get("playerData", {})
+            for pid in player_data:
+                player_data[pid]["currentRoundBet"] = 0
+            state.log.append(_log("Bets reset for new round.", "system"))
+
+        elif act_type == "end_round":
+            # End the game (showdown, scoring, etc.)
+            state.phase = "ended"
+            # Find winner by most chips or still active
+            active = [p for p in state.players if p.status == "active"]
+            if active:
+                player_data = state.metadata.get("playerData", {})
+                best = max(active, key=lambda p: player_data.get(p.id, {}).get("playerChips", 0))
+                best.status = "winner"
+                state.winner = best
+                state.log.append(_log(f"🎉 {best.name} wins!", "system"))
+            return
+
+        elif act_type == "log":
+            msg = act.get("message", "")
+            if msg:
+                state.log.append(_log(msg, "system"))
+
+    # Advance to next phase
+    state.metadata["roundPhase"] = phase_idx + 1
 
 
 def _reverse_direction(state: GameState):
@@ -792,9 +912,124 @@ def _check_win(state: GameState, player: Player, triggered: List[str]) -> bool:
 # Default Actions (Game-specific buttons)
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _evaluate_condition(condition, state: GameState, player) -> bool:
+    """
+    Generic, data-driven condition evaluator for defaultActions showCondition.
+    Supports both legacy string conditions and the new dict-based format.
+    """
+    # Legacy string conditions (backward compat with UNO config)
+    if isinstance(condition, str):
+        return _evaluate_legacy_condition(condition, state, player)
+
+    if not isinstance(condition, dict):
+        return False
+
+    ctype = condition.get("type")
+
+    if ctype == "is_current_turn":
+        return state.currentTurnPlayerId == player.id and state.phase == "playing"
+
+    elif ctype == "is_current_turn_and_phase":
+        phase_id = condition.get("phase")
+        return (state.currentTurnPlayerId == player.id
+                and state.phase == "playing"
+                and state.metadata.get("currentPhase") == phase_id)
+
+    elif ctype == "metadata_equals":
+        key = condition.get("key", "")
+        value = condition.get("value")
+        actual = state.metadata.get(key)
+        # When comparing against a number and the key is missing, default to 0
+        if actual is None and isinstance(value, (int, float)):
+            actual = 0
+        return actual == value
+
+    elif ctype == "metadata_gt":
+        key = condition.get("key", "")
+        value = condition.get("value", 0)
+        return (state.metadata.get(key) or 0) > value
+
+    elif ctype == "metadata_lt":
+        key = condition.get("key", "")
+        value = condition.get("value", 0)
+        return (state.metadata.get(key) or 0) < value
+
+    elif ctype == "has_cards_in_hand":
+        return len(player.hand.cards) > 0
+
+    elif ctype == "always":
+        return True
+
+    elif ctype == "compound":
+        if "all" in condition:
+            return all(_evaluate_condition(c, state, player) for c in condition["all"])
+        if "any" in condition:
+            return any(_evaluate_condition(c, state, player) for c in condition["any"])
+        return False
+
+    return False
+
+
+def _evaluate_legacy_condition(condition_str: str, state: GameState, player) -> bool:
+    """Handle the original UNO-style string conditions."""
+    uno_called_by = state.metadata.get("unoCalledBy", [])
+
+    if condition_str == "self_has_one_card":
+        return len(player.hand.cards) == 1 and player.id not in uno_called_by
+
+    elif condition_str == "opponent_has_one_card_no_call":
+        for other in state.players:
+            if (other.id != player.id and
+                other.status == "active" and
+                len(other.hand.cards) == 1 and
+                other.id not in uno_called_by):
+                return True
+        return False
+
+    return False
+
+
+def _resolve_input_config(input_config: Dict[str, Any], state: GameState, player) -> Dict[str, Any]:
+    """
+    Resolve dynamic references in inputConfig (metadataMin, metadataMax, metadataChoicesKey)
+    against the current game state.
+    """
+    if not input_config:
+        return input_config
+
+    resolved = dict(input_config)
+
+    # Resolve metadataMin / metadataMax to actual min/max numbers
+    if "metadataMin" in resolved:
+        key = resolved.pop("metadataMin")
+        val = state.metadata.get(key)
+        if val is not None:
+            resolved["min"] = val
+
+    if "metadataMax" in resolved:
+        key = resolved.pop("metadataMax")
+        # Try player-specific metadata first (e.g. "playerChips" -> per-player)
+        player_meta = state.metadata.get("playerData", {}).get(player.id, {})
+        val = player_meta.get(key) if player_meta else None
+        if val is None:
+            val = state.metadata.get(key)
+        if val is not None:
+            resolved["max"] = val
+
+    # Resolve dynamic choices from metadata
+    if "metadataChoicesKey" in resolved:
+        key = resolved.pop("metadataChoicesKey")
+        dynamic_choices = state.metadata.get(key, [])
+        if dynamic_choices:
+            resolved["choices"] = dynamic_choices
+
+    return resolved
+
+
 def get_available_default_actions(state: GameState, player_id: str) -> List[Dict[str, Any]]:
     """
     Determine which default action buttons should be shown to a player.
+    Uses a generic condition evaluator to support any game's custom actions.
     Returns a list of available actions based on game config and current state.
     """
     available = []
@@ -805,42 +1040,51 @@ def get_available_default_actions(state: GameState, player_id: str) -> List[Dict
         return []
 
     player = _get_player(state, player_id)
-    if not player or state.phase != "playing":
+    if not player:
         return []
 
-    uno_called_by = state.metadata.get("unoCalledBy", [])
+    # For legacy conditions, still require phase == "playing"
+    # New conditions handle phase checks internally
 
     for action_def in default_actions:
         condition = action_def.get("showCondition")
-        should_show = False
+        action_out = dict(action_def)  # copy so we can enrich
 
-        if condition == "self_has_one_card":
-            # Show "Call UNO" button if player has 1 card and hasn't called
-            if len(player.hand.cards) == 1 and player.id not in uno_called_by:
-                should_show = True
+        # Legacy string conditions need phase == "playing" guard
+        if isinstance(condition, str) and state.phase != "playing":
+            continue
 
-        elif condition == "opponent_has_one_card_no_call":
-            # Show "Catch UNO" button if any opponent has 1 card without calling
+        should_show = _evaluate_condition(condition, state, player)
+
+        # Special handling for opponent-targeting legacy conditions
+        if should_show and isinstance(condition, str) and condition == "opponent_has_one_card_no_call":
+            uno_called_by = state.metadata.get("unoCalledBy", [])
             for other in state.players:
                 if (other.id != player_id and
                     other.status == "active" and
                     len(other.hand.cards) == 1 and
                     other.id not in uno_called_by):
-                    should_show = True
-                    # Add target player info
-                    action_def = {**action_def, "targetPlayerId": other.id, "targetPlayerName": other.name}
+                    action_out["targetPlayerId"] = other.id
+                    action_out["targetPlayerName"] = other.name
                     break
 
         if should_show:
+            # Resolve dynamic inputConfig values
+            input_config = action_out.get("inputConfig")
+            if input_config:
+                input_config = _resolve_input_config(input_config, state, player)
+
             available.append({
-                "id": action_def.get("id"),
-                "label": action_def.get("label"),
-                "icon": action_def.get("icon"),
-                "description": action_def.get("description"),
-                "actionType": action_def.get("actionType"),
-                "color": action_def.get("color", "blue"),
-                "targetPlayerId": action_def.get("targetPlayerId"),
-                "targetPlayerName": action_def.get("targetPlayerName"),
+                "id": action_out.get("id"),
+                "label": action_out.get("label"),
+                "icon": action_out.get("icon"),
+                "description": action_out.get("description"),
+                "actionType": action_out.get("actionType"),
+                "color": action_out.get("color", "blue"),
+                "targetPlayerId": action_out.get("targetPlayerId"),
+                "targetPlayerName": action_out.get("targetPlayerName"),
+                "inputType": action_out.get("inputType", "button"),
+                "inputConfig": input_config,
             })
 
     return available
@@ -948,6 +1192,65 @@ def setup_game(state: GameState):
         if discard_zone and discard_zone.cards:
             _set_active_color(state, discard_zone.cards[0])
 
+    # Initialise per-player data from ui.playerDisplayFields defaults
+    ui_config = state.metadata.get("uiConfig", {})
+    player_display_fields = ui_config.get("playerDisplayFields", [])
+    if player_display_fields:
+        player_data = state.metadata.setdefault("playerData", {})
+        for p in state.players:
+            pd = player_data.setdefault(p.id, {})
+            for field in player_display_fields:
+                if field.get("defaultValue") is not None:
+                    pd.setdefault(field["key"], field["defaultValue"])
+
+    # Initialise game-wide display field defaults
+    game_display_fields = ui_config.get("gameDisplayFields", [])
+    for field in game_display_fields:
+        if field.get("defaultValue") is not None:
+            state.metadata.setdefault(field["key"], field["defaultValue"])
+
+    # Post blinds if configured (Texas Hold'em)
+    blinds_cfg = cfg.get("blinds")
+    if blinds_cfg and len(state.players) >= 2:
+        small_amt = blinds_cfg.get("smallBlind", 10)
+        big_amt = blinds_cfg.get("bigBlind", 20)
+        player_data = state.metadata.setdefault("playerData", {})
+
+        sb_player = state.players[0]
+        bb_player = state.players[1]
+        sb_data = player_data.setdefault(sb_player.id, {})
+        bb_data = player_data.setdefault(bb_player.id, {})
+
+        # Deduct blinds from chips
+        sb_chips = sb_data.get("playerChips", 1000)
+        sb_actual = min(small_amt, sb_chips)
+        sb_data["playerChips"] = sb_chips - sb_actual
+        sb_data["currentRoundBet"] = sb_actual
+
+        bb_chips = bb_data.get("playerChips", 1000)
+        bb_actual = min(big_amt, bb_chips)
+        bb_data["playerChips"] = bb_chips - bb_actual
+        bb_data["currentRoundBet"] = bb_actual
+
+        state.metadata["pot"] = sb_actual + bb_actual
+        state.metadata["currentBet"] = bb_actual
+
+        state.log.append(_log(
+            f"💰 {sb_player.name} posts small blind ({sb_actual}), "
+            f"{bb_player.name} posts big blind ({bb_actual}).",
+            "system"
+        ))
+
+        # Pre-flop action starts from player after big blind
+        if len(state.players) > 2:
+            first_actor = state.players[2]
+        else:
+            # Heads-up: small blind (dealer) acts first pre-flop
+            first_actor = state.players[0]
+        for p in state.players:
+            p.isCurrentTurn = p.id == first_actor.id
+        state.currentTurnPlayerId = first_actor.id
+
     state.log.append(_log(f"🎮 {state.gameName} started!", "system"))
 
 
@@ -966,11 +1269,29 @@ def apply_action(state: GameState, action) -> Tuple[bool, str, List[str]]:
         "call_uno":       _action_call_uno,
         "catch_uno":      _action_catch_uno,
         "challenge":      _action_challenge,
+        "stay":           _action_stay,
+        # Poker / betting actions
+        "check":          _action_stay,      # Check = pass without betting (same as stay)
+        "fold":           _action_fold,
+        "bet":            _action_bet,
+        "call":           _action_bet,        # Call = match current bet (handled by _action_bet)
+        "raise":          _action_bet,        # Raise = increase bet (handled by _action_bet)
+        "all_in":         _action_all_in,
     }
     handler = dispatch.get(action.type)
-    if not handler:
-        return False, f"Unknown action: {action.type}", []
-    return handler(state, action)
+    if handler:
+        return handler(state, action)
+
+    # Fallback: check if a plugin handles this action type
+    from app.services.engines import plugin_loader
+    game_id = state.metadata.get("gameId", "")
+    game_config = state.metadata.get("gameConfig", {})
+    plugin = plugin_loader.get_plugin(game_id, game_config)
+    result = plugin_loader.apply_action_with_plugin(state, action, plugin)
+    if result:
+        return result
+
+    return False, f"Unknown action: {action.type}", []
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1125,10 +1446,15 @@ def _action_draw_card(state, action) -> Tuple[bool, str, List[str]]:
         return False, "Cannot draw right now", []
 
     pending = state.metadata.get("pendingDraw", 0)
-    n = pending if pending > 0 else state.rules.turnStructure.drawCount
+    # When player explicitly draws, always draw at least 1 card
+    n = pending if pending > 0 else max(1, state.rules.turnStructure.drawCount)
     state.metadata["pendingDraw"] = 0
 
     drawn = _draw_n(state, player, n)
+
+    # Check if canPassTurn is set — if so, drawing does NOT auto-advance the turn
+    # (player may draw again or choose to stay/pass, e.g. Flip Seven Hit/Stay)
+    can_pass = state.rules.turnStructure.canPassTurn
 
     if pending > 0:
         state.log.append(_log(f"{player.name} draws {n} cards (stacked penalty).", "action", player.id))
@@ -1144,9 +1470,128 @@ def _action_draw_card(state, action) -> Tuple[bool, str, List[str]]:
                 if not more:
                     break
                 drawn.extend(more)
-        _advance_turn(state)
+        # Only advance turn if canPassTurn is false (normal games).
+        # When canPassTurn is true, player keeps their turn to draw again or stay.
+        if not can_pass:
+            _advance_turn(state)
 
     return True, "", [f"drew:{n}"]
+
+
+def _action_stay(state, action) -> Tuple[bool, str, List[str]]:
+    """End the current player's turn without playing a card (bank points, pass, etc.)."""
+    player = _get_player(state, action.playerId)
+    if not player:
+        return False, "Player not found", []
+    if state.currentTurnPlayerId != player.id:
+        return False, "Not your turn", []
+    if state.phase != "playing":
+        return False, "Cannot stay right now", []
+
+    state.log.append(_log(f"{player.name} stays.", "action", player.id))
+    _advance_turn(state)
+    return True, "", ["stayed"]
+
+
+def _action_fold(state, action) -> Tuple[bool, str, List[str]]:
+    """Fold — player is eliminated from the current round."""
+    player = _get_player(state, action.playerId)
+    if not player:
+        return False, "Player not found", []
+    if state.currentTurnPlayerId != player.id:
+        return False, "Not your turn", []
+    if state.phase != "playing":
+        return False, "Cannot fold right now", []
+
+    player.status = "eliminated"
+    state.log.append(_log(f"{player.name} folds.", "action", player.id))
+
+    # Check if only one player remains (they win)
+    active = [p for p in state.players if p.status == "active"]
+    if len(active) == 1:
+        winner = active[0]
+        winner.status = "winner"
+        state.winner = winner
+        state.phase = "ended"
+        state.log.append(_log(f"🎉 {winner.name} wins!", "system"))
+        return True, "", ["folded", "win"]
+
+    _advance_turn(state)
+    return True, "", ["folded"]
+
+
+def _action_bet(state, action) -> Tuple[bool, str, List[str]]:
+    """Handle bet, call, and raise actions. Amount comes from action.metadata.amount."""
+    player = _get_player(state, action.playerId)
+    if not player:
+        return False, "Player not found", []
+    if state.currentTurnPlayerId != player.id:
+        return False, "Not your turn", []
+    if state.phase != "playing":
+        return False, "Cannot bet right now", []
+
+    meta = action.metadata or {}
+    amount = meta.get("amount", 0)
+    action_type = action.type  # "bet", "call", or "raise"
+
+    # Track bets in metadata
+    player_data = state.metadata.setdefault("playerData", {}).setdefault(player.id, {})
+    current_chips = player_data.get("playerChips", 1000)
+    pot = state.metadata.get("pot", 0)
+
+    if action_type == "call":
+        amount = state.metadata.get("currentBet", 0) - player_data.get("currentRoundBet", 0)
+        amount = min(amount, current_chips)
+
+    if amount <= 0 and action_type != "call":
+        return False, "Bet amount must be positive", []
+    if amount > current_chips:
+        return False, "Not enough chips", []
+
+    player_data["playerChips"] = current_chips - amount
+    player_data["currentRoundBet"] = player_data.get("currentRoundBet", 0) + amount
+    state.metadata["pot"] = pot + amount
+
+    if action_type in ("bet", "raise"):
+        state.metadata["currentBet"] = player_data["currentRoundBet"]
+        # Re-open the betting round: everyone else must act again (poker rule)
+        state.metadata["roundActedPlayers"] = [player.id]
+
+    label = {"bet": "bets", "call": "calls", "raise": "raises to"}.get(action_type, "bets")
+    state.log.append(_log(f"{player.name} {label} {amount}.", "action", player.id))
+
+    _advance_turn(state)
+    return True, "", [f"{action_type}:{amount}"]
+
+
+def _action_all_in(state, action) -> Tuple[bool, str, List[str]]:
+    """Go all-in — bet all remaining chips."""
+    player = _get_player(state, action.playerId)
+    if not player:
+        return False, "Player not found", []
+    if state.currentTurnPlayerId != player.id:
+        return False, "Not your turn", []
+    if state.phase != "playing":
+        return False, "Cannot go all-in right now", []
+
+    player_data = state.metadata.setdefault("playerData", {}).setdefault(player.id, {})
+    current_chips = player_data.get("playerChips", 1000)
+    pot = state.metadata.get("pot", 0)
+
+    player_data["playerChips"] = 0
+    player_data["currentRoundBet"] = player_data.get("currentRoundBet", 0) + current_chips
+    state.metadata["pot"] = pot + current_chips
+    old_bet = state.metadata.get("currentBet", 0)
+    new_bet = max(old_bet, player_data["currentRoundBet"])
+    state.metadata["currentBet"] = new_bet
+
+    # If all-in raised the bet, re-open action for everyone else (poker rule)
+    if new_bet > old_bet:
+        state.metadata["roundActedPlayers"] = [player.id]
+
+    state.log.append(_log(f"{player.name} goes ALL-IN with {current_chips} chips!", "action", player.id))
+    _advance_turn(state)
+    return True, "", [f"all_in:{current_chips}"]
 
 
 def _action_choose_color(state, action) -> Tuple[bool, str, List[str]]:

@@ -1,0 +1,347 @@
+{
+  "id": "poker",
+  "name": "Poker",
+  "description": "Texas Hold'em poker with hole cards, community cards, and betting rounds.",
+  "version": "1.0.0",
+  "themeColor": "#047857",
+  "backgroundEmoji": "\ud83c\udccf",
+  "rules": {
+    "minPlayers": 2,
+    "maxPlayers": 10,
+    "handSize": 2,
+    "turnStructure": {
+      "phases": [
+        {
+          "id": "bet",
+          "name": "Betting",
+          "description": "Check, bet, call, raise, or fold.",
+          "isOptional": false
+        }
+      ],
+      "canPassTurn": false,
+      "mustPlayCard": false,
+      "drawCount": 0
+    },
+    "winCondition": {
+      "type": "most_points",
+      "description": "Best 5-card poker hand using hole cards and community cards wins the pot.",
+      "metadata": {
+        "targetScore": 0
+      }
+    },
+    "specialRules": [
+      {
+        "id": "blinds",
+        "name": "Blinds",
+        "trigger": "on_turn_start",
+        "description": "Small and big blinds are posted before dealing."
+      },
+      {
+        "id": "community_cards",
+        "name": "Community Cards",
+        "trigger": "on_play",
+        "description": "Five community cards are dealt face-up: flop (3), turn (1), river (1)."
+      },
+      {
+        "id": "best_hand",
+        "name": "Best Hand",
+        "trigger": "on_combo",
+        "description": "Players make the best 5-card hand from 2 hole + 5 community cards."
+      },
+      {
+        "id": "all_in",
+        "name": "All-In",
+        "trigger": "on_play",
+        "description": "Players can bet all remaining chips. Side pots created if needed."
+      }
+    ]
+  },
+  "config": {
+    "matchColor": false,
+    "matchNumber": false,
+    "matchType": false,
+    "wildAlwaysPlayable": false,
+    "stackableDraw": false,
+    "reverseEqualsSkipTwoPlayers": false,
+    "startWithDiscard": false,
+    "excludeFromStartDiscard": [],
+    "drawUntilPlayable": false,
+    "colors": [
+      "hearts",
+      "diamonds",
+      "clubs",
+      "spades"
+    ],
+    "colorEmojis": {
+      "hearts": "\u2665\ufe0f",
+      "diamonds": "\u2666\ufe0f",
+      "clubs": "\u2663\ufe0f",
+      "spades": "\u2660\ufe0f"
+    },
+    "blinds": {
+      "smallBlind": 10,
+      "bigBlind": 20
+    },
+    "zones": [
+      {
+        "id": "deck",
+        "name": "Deck",
+        "type": "deck",
+        "isPublic": false
+      },
+      {
+        "id": "community",
+        "name": "Community Cards",
+        "type": "discard",
+        "isPublic": true
+      },
+      {
+        "id": "burn",
+        "name": "Burn Pile",
+        "type": "discard",
+        "isPublic": false
+      }
+    ],
+    "roundActions": [
+      {
+        "phase": "flop",
+        "actions": [
+          { "type": "burn_card" },
+          { "type": "deal_to_zone", "zone": "community", "count": 3, "message": "The flop: {cards}" },
+          { "type": "reset_bets" }
+        ]
+      },
+      {
+        "phase": "turn",
+        "actions": [
+          { "type": "burn_card" },
+          { "type": "deal_to_zone", "zone": "community", "count": 1, "message": "The turn: {card}" },
+          { "type": "reset_bets" }
+        ]
+      },
+      {
+        "phase": "river",
+        "actions": [
+          { "type": "burn_card" },
+          { "type": "deal_to_zone", "zone": "community", "count": 1, "message": "The river: {card}" },
+          { "type": "reset_bets" }
+        ]
+      },
+      {
+        "phase": "showdown",
+        "actions": [
+          { "type": "log", "message": "Showdown! Best hand wins the pot." },
+          { "type": "end_round" }
+        ]
+      }
+    ],
+    "defaultActions": [
+      {
+        "id": "check",
+        "label": "Check \u270b",
+        "icon": "\u270b",
+        "description": "Check (pass without betting)",
+        "actionType": "check",
+        "showCondition": {
+          "type": "compound",
+          "all": [
+            { "type": "is_current_turn" },
+            { "type": "metadata_equals", "key": "currentBet", "value": 0 }
+          ]
+        },
+        "color": "gray",
+        "inputType": "button"
+      },
+      {
+        "id": "bet",
+        "label": "Bet \ud83d\udcb0",
+        "icon": "\ud83d\udcb0",
+        "description": "Place a bet",
+        "actionType": "bet",
+        "showCondition": {
+          "type": "compound",
+          "all": [
+            { "type": "is_current_turn" },
+            { "type": "metadata_equals", "key": "currentBet", "value": 0 }
+          ]
+        },
+        "color": "green",
+        "inputType": "number",
+        "inputConfig": {
+          "min": 1,
+          "metadataMax": "playerChips",
+          "step": 1,
+          "label": "Bet amount"
+        }
+      },
+      {
+        "id": "call",
+        "label": "Call \ud83d\udcde",
+        "icon": "\ud83d\udcde",
+        "description": "Match the current bet",
+        "actionType": "call",
+        "showCondition": {
+          "type": "compound",
+          "all": [
+            { "type": "is_current_turn" },
+            { "type": "metadata_gt", "key": "currentBet", "value": 0 }
+          ]
+        },
+        "color": "blue",
+        "inputType": "button"
+      },
+      {
+        "id": "raise",
+        "label": "Raise \u2b06\ufe0f",
+        "icon": "\u2b06\ufe0f",
+        "description": "Raise the current bet",
+        "actionType": "raise",
+        "showCondition": {
+          "type": "compound",
+          "all": [
+            { "type": "is_current_turn" },
+            { "type": "metadata_gt", "key": "currentBet", "value": 0 }
+          ]
+        },
+        "color": "yellow",
+        "inputType": "number",
+        "inputConfig": {
+          "min": 1,
+          "metadataMin": "currentBet",
+          "metadataMax": "playerChips",
+          "step": 1,
+          "label": "Raise to"
+        }
+      },
+      {
+        "id": "fold",
+        "label": "Fold \ud83d\uddc2\ufe0f",
+        "icon": "\ud83d\uddc2\ufe0f",
+        "description": "Fold your hand",
+        "actionType": "fold",
+        "showCondition": { "type": "is_current_turn" },
+        "color": "red",
+        "inputType": "button"
+      },
+      {
+        "id": "all_in",
+        "label": "All-In \ud83c\udfb2",
+        "icon": "\ud83c\udfb2",
+        "description": "Bet all your remaining chips",
+        "actionType": "all_in",
+        "showCondition": { "type": "is_current_turn" },
+        "color": "red",
+        "inputType": "button"
+      }
+    ]
+  },
+  "cards": [
+    {"id":"ace_spades","name":"Ace of Spades","type":"number","subtype":"ace","emoji":"\ud83c\udca1","description":"Ace of Spades - high or low in straights","effects":[{"type":"number","value":14,"target":"self","description":"Ace (high value)","metadata":{"suit":"spades","rank":"ace","value":14}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"spades","rank":"ace","value":14,"color":"black"}},
+    {"id":"king_spades","name":"King of Spades","type":"number","subtype":"king","emoji":"\ud83c\udcae","description":"King of Spades","effects":[{"type":"number","value":13,"target":"self","description":"King","metadata":{"suit":"spades","rank":"king","value":13}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"spades","rank":"king","value":13,"color":"black"}},
+    {"id":"queen_spades","name":"Queen of Spades","type":"number","subtype":"queen","emoji":"\ud83c\udcad","description":"Queen of Spades","effects":[{"type":"number","value":12,"target":"self","description":"Queen","metadata":{"suit":"spades","rank":"queen","value":12}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"spades","rank":"queen","value":12,"color":"black"}},
+    {"id":"jack_spades","name":"Jack of Spades","type":"number","subtype":"jack","emoji":"\ud83c\udcab","description":"Jack of Spades","effects":[{"type":"number","value":11,"target":"self","description":"Jack","metadata":{"suit":"spades","rank":"jack","value":11}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"spades","rank":"jack","value":11,"color":"black"}},
+    {"id":"ten_spades","name":"Ten of Spades","type":"number","subtype":"ten","emoji":"\ud83c\udcaa","description":"Ten of Spades","effects":[{"type":"number","value":10,"target":"self","description":"Ten","metadata":{"suit":"spades","rank":"ten","value":10}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"spades","rank":"ten","value":10,"color":"black"}},
+    {"id":"nine_spades","name":"Nine of Spades","type":"number","subtype":"nine","emoji":"\ud83c\udca9","description":"Nine of Spades","effects":[{"type":"number","value":9,"target":"self","description":"Nine","metadata":{"suit":"spades","rank":"nine","value":9}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"spades","rank":"nine","value":9,"color":"black"}},
+    {"id":"eight_spades","name":"Eight of Spades","type":"number","subtype":"eight","emoji":"\ud83c\udca8","description":"Eight of Spades","effects":[{"type":"number","value":8,"target":"self","description":"Eight","metadata":{"suit":"spades","rank":"eight","value":8}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"spades","rank":"eight","value":8,"color":"black"}},
+    {"id":"seven_spades","name":"Seven of Spades","type":"number","subtype":"seven","emoji":"\ud83c\udca7","description":"Seven of Spades","effects":[{"type":"number","value":7,"target":"self","description":"Seven","metadata":{"suit":"spades","rank":"seven","value":7}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"spades","rank":"seven","value":7,"color":"black"}},
+    {"id":"six_spades","name":"Six of Spades","type":"number","subtype":"six","emoji":"\ud83c\udca6","description":"Six of Spades","effects":[{"type":"number","value":6,"target":"self","description":"Six","metadata":{"suit":"spades","rank":"six","value":6}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"spades","rank":"six","value":6,"color":"black"}},
+    {"id":"five_spades","name":"Five of Spades","type":"number","subtype":"five","emoji":"\ud83c\udca5","description":"Five of Spades","effects":[{"type":"number","value":5,"target":"self","description":"Five","metadata":{"suit":"spades","rank":"five","value":5}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"spades","rank":"five","value":5,"color":"black"}},
+    {"id":"four_spades","name":"Four of Spades","type":"number","subtype":"four","emoji":"\ud83c\udca4","description":"Four of Spades","effects":[{"type":"number","value":4,"target":"self","description":"Four","metadata":{"suit":"spades","rank":"four","value":4}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"spades","rank":"four","value":4,"color":"black"}},
+    {"id":"three_spades","name":"Three of Spades","type":"number","subtype":"three","emoji":"\ud83c\udca3","description":"Three of Spades","effects":[{"type":"number","value":3,"target":"self","description":"Three","metadata":{"suit":"spades","rank":"three","value":3}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"spades","rank":"three","value":3,"color":"black"}},
+    {"id":"two_spades","name":"Two of Spades","type":"number","subtype":"two","emoji":"\ud83c\udca2","description":"Two of Spades","effects":[{"type":"number","value":2,"target":"self","description":"Two","metadata":{"suit":"spades","rank":"two","value":2}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"spades","rank":"two","value":2,"color":"black"}},
+    {"id":"ace_hearts","name":"Ace of Hearts","type":"number","subtype":"ace","emoji":"\ud83c\udcb1","description":"Ace of Hearts - high or low in straights","effects":[{"type":"number","value":14,"target":"self","description":"Ace (high value)","metadata":{"suit":"hearts","rank":"ace","value":14}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"hearts","rank":"ace","value":14,"color":"red"}},
+    {"id":"king_hearts","name":"King of Hearts","type":"number","subtype":"king","emoji":"\ud83c\udcbe","description":"King of Hearts","effects":[{"type":"number","value":13,"target":"self","description":"King","metadata":{"suit":"hearts","rank":"king","value":13}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"hearts","rank":"king","value":13,"color":"red"}},
+    {"id":"queen_hearts","name":"Queen of Hearts","type":"number","subtype":"queen","emoji":"\ud83c\udcbd","description":"Queen of Hearts","effects":[{"type":"number","value":12,"target":"self","description":"Queen","metadata":{"suit":"hearts","rank":"queen","value":12}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"hearts","rank":"queen","value":12,"color":"red"}},
+    {"id":"jack_hearts","name":"Jack of Hearts","type":"number","subtype":"jack","emoji":"\ud83c\udcbb","description":"Jack of Hearts","effects":[{"type":"number","value":11,"target":"self","description":"Jack","metadata":{"suit":"hearts","rank":"jack","value":11}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"hearts","rank":"jack","value":11,"color":"red"}},
+    {"id":"ten_hearts","name":"Ten of Hearts","type":"number","subtype":"ten","emoji":"\ud83c\udcba","description":"Ten of Hearts","effects":[{"type":"number","value":10,"target":"self","description":"Ten","metadata":{"suit":"hearts","rank":"ten","value":10}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"hearts","rank":"ten","value":10,"color":"red"}},
+    {"id":"nine_hearts","name":"Nine of Hearts","type":"number","subtype":"nine","emoji":"\ud83c\udcb9","description":"Nine of Hearts","effects":[{"type":"number","value":9,"target":"self","description":"Nine","metadata":{"suit":"hearts","rank":"nine","value":9}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"hearts","rank":"nine","value":9,"color":"red"}},
+    {"id":"eight_hearts","name":"Eight of Hearts","type":"number","subtype":"eight","emoji":"\ud83c\udcb8","description":"Eight of Hearts","effects":[{"type":"number","value":8,"target":"self","description":"Eight","metadata":{"suit":"hearts","rank":"eight","value":8}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"hearts","rank":"eight","value":8,"color":"red"}},
+    {"id":"seven_hearts","name":"Seven of Hearts","type":"number","subtype":"seven","emoji":"\ud83c\udcb7","description":"Seven of Hearts","effects":[{"type":"number","value":7,"target":"self","description":"Seven","metadata":{"suit":"hearts","rank":"seven","value":7}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"hearts","rank":"seven","value":7,"color":"red"}},
+    {"id":"six_hearts","name":"Six of Hearts","type":"number","subtype":"six","emoji":"\ud83c\udcb6","description":"Six of Hearts","effects":[{"type":"number","value":6,"target":"self","description":"Six","metadata":{"suit":"hearts","rank":"six","value":6}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"hearts","rank":"six","value":6,"color":"red"}},
+    {"id":"five_hearts","name":"Five of Hearts","type":"number","subtype":"five","emoji":"\ud83c\udcb5","description":"Five of Hearts","effects":[{"type":"number","value":5,"target":"self","description":"Five","metadata":{"suit":"hearts","rank":"five","value":5}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"hearts","rank":"five","value":5,"color":"red"}},
+    {"id":"four_hearts","name":"Four of Hearts","type":"number","subtype":"four","emoji":"\ud83c\udcb4","description":"Four of Hearts","effects":[{"type":"number","value":4,"target":"self","description":"Four","metadata":{"suit":"hearts","rank":"four","value":4}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"hearts","rank":"four","value":4,"color":"red"}},
+    {"id":"three_hearts","name":"Three of Hearts","type":"number","subtype":"three","emoji":"\ud83c\udcb3","description":"Three of Hearts","effects":[{"type":"number","value":3,"target":"self","description":"Three","metadata":{"suit":"hearts","rank":"three","value":3}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"hearts","rank":"three","value":3,"color":"red"}},
+    {"id":"two_hearts","name":"Two of Hearts","type":"number","subtype":"two","emoji":"\ud83c\udcb2","description":"Two of Hearts","effects":[{"type":"number","value":2,"target":"self","description":"Two","metadata":{"suit":"hearts","rank":"two","value":2}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"hearts","rank":"two","value":2,"color":"red"}},
+    {"id":"ace_diamonds","name":"Ace of Diamonds","type":"number","subtype":"ace","emoji":"\ud83c\udcc1","description":"Ace of Diamonds - high or low in straights","effects":[{"type":"number","value":14,"target":"self","description":"Ace (high value)","metadata":{"suit":"diamonds","rank":"ace","value":14}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"diamonds","rank":"ace","value":14,"color":"red"}},
+    {"id":"king_diamonds","name":"King of Diamonds","type":"number","subtype":"king","emoji":"\ud83c\udcce","description":"King of Diamonds","effects":[{"type":"number","value":13,"target":"self","description":"King","metadata":{"suit":"diamonds","rank":"king","value":13}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"diamonds","rank":"king","value":13,"color":"red"}},
+    {"id":"queen_diamonds","name":"Queen of Diamonds","type":"number","subtype":"queen","emoji":"\ud83c\udccd","description":"Queen of Diamonds","effects":[{"type":"number","value":12,"target":"self","description":"Queen","metadata":{"suit":"diamonds","rank":"queen","value":12}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"diamonds","rank":"queen","value":12,"color":"red"}},
+    {"id":"jack_diamonds","name":"Jack of Diamonds","type":"number","subtype":"jack","emoji":"\ud83c\udccb","description":"Jack of Diamonds","effects":[{"type":"number","value":11,"target":"self","description":"Jack","metadata":{"suit":"diamonds","rank":"jack","value":11}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"diamonds","rank":"jack","value":11,"color":"red"}},
+    {"id":"ten_diamonds","name":"Ten of Diamonds","type":"number","subtype":"ten","emoji":"\ud83c\udcca","description":"Ten of Diamonds","effects":[{"type":"number","value":10,"target":"self","description":"Ten","metadata":{"suit":"diamonds","rank":"ten","value":10}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"diamonds","rank":"ten","value":10,"color":"red"}},
+    {"id":"nine_diamonds","name":"Nine of Diamonds","type":"number","subtype":"nine","emoji":"\ud83c\udcc9","description":"Nine of Diamonds","effects":[{"type":"number","value":9,"target":"self","description":"Nine","metadata":{"suit":"diamonds","rank":"nine","value":9}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"diamonds","rank":"nine","value":9,"color":"red"}},
+    {"id":"eight_diamonds","name":"Eight of Diamonds","type":"number","subtype":"eight","emoji":"\ud83c\udcc8","description":"Eight of Diamonds","effects":[{"type":"number","value":8,"target":"self","description":"Eight","metadata":{"suit":"diamonds","rank":"eight","value":8}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"diamonds","rank":"eight","value":8,"color":"red"}},
+    {"id":"seven_diamonds","name":"Seven of Diamonds","type":"number","subtype":"seven","emoji":"\ud83c\udcc7","description":"Seven of Diamonds","effects":[{"type":"number","value":7,"target":"self","description":"Seven","metadata":{"suit":"diamonds","rank":"seven","value":7}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"diamonds","rank":"seven","value":7,"color":"red"}},
+    {"id":"six_diamonds","name":"Six of Diamonds","type":"number","subtype":"six","emoji":"\ud83c\udcc6","description":"Six of Diamonds","effects":[{"type":"number","value":6,"target":"self","description":"Six","metadata":{"suit":"diamonds","rank":"six","value":6}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"diamonds","rank":"six","value":6,"color":"red"}},
+    {"id":"five_diamonds","name":"Five of Diamonds","type":"number","subtype":"five","emoji":"\ud83c\udcc5","description":"Five of Diamonds","effects":[{"type":"number","value":5,"target":"self","description":"Five","metadata":{"suit":"diamonds","rank":"five","value":5}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"diamonds","rank":"five","value":5,"color":"red"}},
+    {"id":"four_diamonds","name":"Four of Diamonds","type":"number","subtype":"four","emoji":"\ud83c\udcc4","description":"Four of Diamonds","effects":[{"type":"number","value":4,"target":"self","description":"Four","metadata":{"suit":"diamonds","rank":"four","value":4}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"diamonds","rank":"four","value":4,"color":"red"}},
+    {"id":"three_diamonds","name":"Three of Diamonds","type":"number","subtype":"three","emoji":"\ud83c\udcc3","description":"Three of Diamonds","effects":[{"type":"number","value":3,"target":"self","description":"Three","metadata":{"suit":"diamonds","rank":"three","value":3}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"diamonds","rank":"three","value":3,"color":"red"}},
+    {"id":"two_diamonds","name":"Two of Diamonds","type":"number","subtype":"two","emoji":"\ud83c\udcc2","description":"Two of Diamonds","effects":[{"type":"number","value":2,"target":"self","description":"Two","metadata":{"suit":"diamonds","rank":"two","value":2}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"diamonds","rank":"two","value":2,"color":"red"}},
+    {"id":"ace_clubs","name":"Ace of Clubs","type":"number","subtype":"ace","emoji":"\ud83c\udcd1","description":"Ace of Clubs - high or low in straights","effects":[{"type":"number","value":14,"target":"self","description":"Ace (high value)","metadata":{"suit":"clubs","rank":"ace","value":14}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"clubs","rank":"ace","value":14,"color":"black"}},
+    {"id":"king_clubs","name":"King of Clubs","type":"number","subtype":"king","emoji":"\ud83c\udcde","description":"King of Clubs","effects":[{"type":"number","value":13,"target":"self","description":"King","metadata":{"suit":"clubs","rank":"king","value":13}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"clubs","rank":"king","value":13,"color":"black"}},
+    {"id":"queen_clubs","name":"Queen of Clubs","type":"number","subtype":"queen","emoji":"\ud83c\udcdd","description":"Queen of Clubs","effects":[{"type":"number","value":12,"target":"self","description":"Queen","metadata":{"suit":"clubs","rank":"queen","value":12}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"clubs","rank":"queen","value":12,"color":"black"}},
+    {"id":"jack_clubs","name":"Jack of Clubs","type":"number","subtype":"jack","emoji":"\ud83c\udcdb","description":"Jack of Clubs","effects":[{"type":"number","value":11,"target":"self","description":"Jack","metadata":{"suit":"clubs","rank":"jack","value":11}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"clubs","rank":"jack","value":11,"color":"black"}},
+    {"id":"ten_clubs","name":"Ten of Clubs","type":"number","subtype":"ten","emoji":"\ud83c\udcda","description":"Ten of Clubs","effects":[{"type":"number","value":10,"target":"self","description":"Ten","metadata":{"suit":"clubs","rank":"ten","value":10}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"clubs","rank":"ten","value":10,"color":"black"}},
+    {"id":"nine_clubs","name":"Nine of Clubs","type":"number","subtype":"nine","emoji":"\ud83c\udcd9","description":"Nine of Clubs","effects":[{"type":"number","value":9,"target":"self","description":"Nine","metadata":{"suit":"clubs","rank":"nine","value":9}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"clubs","rank":"nine","value":9,"color":"black"}},
+    {"id":"eight_clubs","name":"Eight of Clubs","type":"number","subtype":"eight","emoji":"\ud83c\udcd8","description":"Eight of Clubs","effects":[{"type":"number","value":8,"target":"self","description":"Eight","metadata":{"suit":"clubs","rank":"eight","value":8}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"clubs","rank":"eight","value":8,"color":"black"}},
+    {"id":"seven_clubs","name":"Seven of Clubs","type":"number","subtype":"seven","emoji":"\ud83c\udcd7","description":"Seven of Clubs","effects":[{"type":"number","value":7,"target":"self","description":"Seven","metadata":{"suit":"clubs","rank":"seven","value":7}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"clubs","rank":"seven","value":7,"color":"black"}},
+    {"id":"six_clubs","name":"Six of Clubs","type":"number","subtype":"six","emoji":"\ud83c\udcd6","description":"Six of Clubs","effects":[{"type":"number","value":6,"target":"self","description":"Six","metadata":{"suit":"clubs","rank":"six","value":6}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"clubs","rank":"six","value":6,"color":"black"}},
+    {"id":"five_clubs","name":"Five of Clubs","type":"number","subtype":"five","emoji":"\ud83c\udcd5","description":"Five of Clubs","effects":[{"type":"number","value":5,"target":"self","description":"Five","metadata":{"suit":"clubs","rank":"five","value":5}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"clubs","rank":"five","value":5,"color":"black"}},
+    {"id":"four_clubs","name":"Four of Clubs","type":"number","subtype":"four","emoji":"\ud83c\udcd4","description":"Four of Clubs","effects":[{"type":"number","value":4,"target":"self","description":"Four","metadata":{"suit":"clubs","rank":"four","value":4}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"clubs","rank":"four","value":4,"color":"black"}},
+    {"id":"three_clubs","name":"Three of Clubs","type":"number","subtype":"three","emoji":"\ud83c\udcd3","description":"Three of Clubs","effects":[{"type":"number","value":3,"target":"self","description":"Three","metadata":{"suit":"clubs","rank":"three","value":3}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"clubs","rank":"three","value":3,"color":"black"}},
+    {"id":"two_clubs","name":"Two of Clubs","type":"number","subtype":"two","emoji":"\ud83c\udcd2","description":"Two of Clubs","effects":[{"type":"number","value":2,"target":"self","description":"Two","metadata":{"suit":"clubs","rank":"two","value":2}}],"isPlayable":true,"isReaction":false,"count":1,"metadata":{"suit":"clubs","rank":"two","value":2,"color":"black"}}
+  ],
+  "ui": {
+    "tableBackground": "#047857",
+    "cardBack": "\ud83c\udca0",
+    "deckLabel": "Deck",
+    "discardLabel": "Community Cards",
+    "turnPrompt": "Check, bet, call, raise, or fold.",
+    "waitPrompt": "Waiting for {playerName} to act...",
+    "winMessage": "\ud83c\udfc6 {playerName} wins with {handName}!",
+    "eliminatedMessage": "\ud83d\udcb8 {playerName} is out!",
+    "actionLabels": {
+      "check": "Check \u270b",
+      "bet": "Bet \ud83d\udcb0",
+      "call": "Call \ud83d\udcde",
+      "raise": "Raise \u2b06\ufe0f",
+      "fold": "Fold \ud83d\uddc2\ufe0f",
+      "all_in": "All-In \ud83c\udfb2"
+    },
+    "specialPrompts": {
+      "betting_action": "Choose your betting action",
+      "bet_amount": "Enter bet amount",
+      "raise_amount": "Enter raise amount",
+      "showdown": "Showdown! Reveal your best hand",
+      "side_pot": "Side pot created for all-in player",
+      "blinds_posted": "Blinds posted: Small {small}, Big {big}",
+      "community_flop": "The flop: {cards}",
+      "community_turn": "The turn: {card}",
+      "community_river": "The river: {card}"
+    },
+    "handRankings": {
+      "high_card": "High Card",
+      "pair": "One Pair",
+      "two_pair": "Two Pair",
+      "three_kind": "Three of a Kind",
+      "straight": "Straight",
+      "flush": "Flush",
+      "full_house": "Full House",
+      "four_kind": "Four of a Kind",
+      "straight_flush": "Straight Flush",
+      "royal_flush": "Royal Flush"
+    },
+    "layout": {
+      "hideDrawPile": true,
+      "hideDiscardPile": true,
+      "showZones": ["community"],
+      "showScoreboard": false
+    },
+    "playerDisplayFields": [
+      { "key": "playerChips", "label": "Chips", "icon": "\ud83e\ude99", "format": "number", "defaultValue": 1000 },
+      { "key": "currentRoundBet", "label": "Bet", "icon": "\ud83d\udcb0", "format": "number", "defaultValue": 0 }
+    ],
+    "gameDisplayFields": [
+      { "key": "pot", "label": "Pot", "icon": "\ud83c\udfc6", "format": "number", "defaultValue": 0 },
+      { "key": "currentBet", "label": "Current Bet", "icon": "\ud83d\udcb5", "format": "number", "defaultValue": 0 }
+    ]
+  }
+}

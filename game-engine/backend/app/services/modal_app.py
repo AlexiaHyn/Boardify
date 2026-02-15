@@ -26,7 +26,26 @@ try:
 except (IndexError, OSError):
     _backend_root = Path("/root")
 
-# Main image — NO local file mounts (template is inlined below)
+# Engine source files read at deploy time (locally) and inlined as strings
+# so the plugin generator can pass them to the AI as context.
+_engines_dir = Path(__file__).resolve().parent / "engines"
+
+
+def _read_engine_file(name: str) -> str:
+    """Read an engine source file at deploy time. Returns empty comment on failure."""
+    try:
+        return (_engines_dir / name).read_text(encoding="utf-8")
+    except (FileNotFoundError, OSError):
+        return f"# {name} not available"
+
+
+_SRC_GENERIC = _read_engine_file("generic.py")
+_SRC_PLUGIN_LOADER = _read_engine_file("plugin_loader.py")
+_SRC_UNIVERSAL = _read_engine_file("universal.py")
+_SRC_UNO_PLUGIN = _read_engine_file("uno.py")
+_SRC_PLUGIN_BASE = _read_engine_file("game_plugin_base.py")
+
+# Main image
 image = (
     modal.Image.debian_slim(python_version="3.11")
     .pip_install("anthropic", "httpx", "pydantic>=2.0.0")
@@ -222,7 +241,114 @@ GAME_TEMPLATE = r'''{
           "type":     "discard",
           "isPublic": true
         }
-      ]
+      ],
+
+      "defaultActions": [
+        {
+          "_note": "OPTIONAL array. Declares action buttons shown to players during gameplay.",
+          "_note2": "These become real buttons in the UI. Each action needs an id, label, actionType, showCondition, and inputType.",
+          "id": "example_button",
+          "label": "Draw Card 🃏",
+          "icon": "🃏",
+          "description": "Draw a card from the deck",
+          "actionType": "draw_card",
+          "showCondition": { "type": "is_current_turn" },
+          "_showCondition_types": [
+            "is_current_turn        — show when it is this player's turn",
+            "is_current_turn_and_phase — show during a specific phase (set 'phase' key)",
+            "metadata_equals        — show when state.metadata[key] == value",
+            "metadata_gt            — show when state.metadata[key] > value",
+            "metadata_lt            — show when state.metadata[key] < value",
+            "has_cards_in_hand      — show when player has cards",
+            "always                 — always show (any phase, any turn)",
+            "compound               — combine conditions with 'all' (AND) or 'any' (OR) arrays",
+            "self_has_one_card      — (legacy) UNO-style: player has exactly 1 card",
+            "opponent_has_one_card_no_call — (legacy) UNO-style: opponent forgot to call"
+          ],
+          "color": "blue",
+          "_color_choose": ["red", "yellow", "green", "blue", "gray"],
+          "inputType": "button",
+          "_inputType_choose": [
+            "button  — simple click action, fires immediately",
+            "number  — numeric input with +/- stepper and confirm (e.g. bet amount). Set inputConfig.",
+            "choice  — inline choice chips (e.g. pick a suit/color). Set inputConfig.choices."
+          ],
+          "inputConfig": {
+            "_note": "Only needed for 'number' or 'choice' inputType.",
+            "_for_number": "{ min, max, step, label, metadataMin, metadataMax }",
+            "_for_choice": "{ label, choices: [{value, label, icon?, color?}], metadataChoicesKey }"
+          }
+        },
+        {
+          "_example": "Number input (e.g. Poker bet)",
+          "id": "bet_example",
+          "label": "Bet 💰",
+          "icon": "💰",
+          "description": "Place a bet",
+          "actionType": "bet",
+          "showCondition": { "type": "is_current_turn" },
+          "color": "green",
+          "inputType": "number",
+          "inputConfig": { "min": 1, "metadataMax": "playerChips", "step": 1, "label": "Bet amount" }
+        },
+        {
+          "_example": "Choice input (e.g. Go Fish ask rank)",
+          "id": "choice_example",
+          "label": "Choose Color",
+          "icon": "🎨",
+          "actionType": "choose_color",
+          "showCondition": { "type": "is_current_turn" },
+          "color": "blue",
+          "inputType": "choice",
+          "inputConfig": {
+            "label": "Pick a color",
+            "choices": [
+              { "value": "red", "label": "Red", "icon": "🔴" },
+              { "value": "blue", "label": "Blue", "icon": "🔵" }
+            ]
+          }
+        }
+      ],
+      "_defaultActions_note": "IMPORTANT: Include defaultActions for ANY game that has turn-based actions beyond simple card play. Examples: Hit/Stay (Blackjack/Flip Seven), Check/Bet/Call/Raise/Fold (Poker), Ask for Rank (Go Fish), Knock/Draw (Gin Rummy). Use inputType 'button' for simple actions, 'number' for bet/wager amounts, 'choice' for picking from options.",
+
+      "blinds": {
+        "_note": "OPTIONAL. Automatic blind posting at game start (Texas Hold'em, etc.).",
+        "_note2": "Engine deducts chips from first two players, sets currentBet = bigBlind, adds to pot.",
+        "smallBlind": 10,
+        "bigBlind": 20
+      },
+
+      "roundActions": [
+        {
+          "_note": "OPTIONAL array. Defines automatic actions that fire after each complete round of turns (all active players have acted). Phases execute in order — phase 0 fires after the first round, phase 1 after the second, etc.",
+          "phase": "descriptive_name",
+          "actions": [
+            {
+              "type": "deal_to_zone",
+              "_type_choose": [
+                "burn_card      — discard one card face-down from the deck (poker rule: burn before community deals)",
+                "deal_to_zone   — deal N cards from deck to a named zone (e.g. community cards)",
+                "reset_bets     — reset currentBet and per-player currentRoundBet to 0",
+                "end_round      — end the game/round (triggers showdown/scoring)",
+                "log            — append a message to the game log"
+              ],
+              "zone": "community",
+              "count": 3,
+              "message": "The flop: {cards}"
+            }
+          ]
+        },
+        {
+          "_example_poker_flop": true,
+          "phase": "flop",
+          "actions": [
+            { "type": "burn_card" },
+            { "type": "deal_to_zone", "zone": "community", "count": 3, "message": "The flop: {cards}" },
+            { "type": "reset_bets" }
+          ]
+        }
+      ],
+      "_roundActions_note": "Use for: Poker (burn card + deal flop/turn/river between betting rounds), multi-phase games with automatic card dealing or state changes between player rounds."
     },
 
 
@@ -344,7 +470,45 @@ GAME_TEMPLATE = r'''{
         "yellow": { "label": "Yellow", "emoji": "\ud83d\udfe1", "bg": "#ca8a04" },
         "green":  { "label": "Green",  "emoji": "\ud83d\udfe2", "bg": "#16a34a" },
         "blue":   { "label": "Blue",   "emoji": "\ud83d\udd35", "bg": "#2563eb" }
-      }
+      },
+      "layout": {
+        "_note": "OPTIONAL. Controls which table zones are visible and other UI hints.",
+        "hideDrawPile": false,
+        "_hideDrawPile_note": "true = do not show the draw pile (e.g. Poker has no player draw).",
+        "hideDiscardPile": false,
+        "_hideDiscardPile_note": "true = do not show the discard pile.",
+        "showZones": [],
+        "_showZones_note": "Array of custom zone IDs to display on the table (e.g. ['community'] for Poker).",
+        "showScoreboard": false,
+        "_showScoreboard_note": "true = display a live scoreboard (useful for point-based games like Flip Seven).",
+        "primaryActionArea": "buttons",
+        "_primaryActionArea_note": "OPTIONAL. 'buttons' (default) = action buttons at bottom. Could be extended later."
+      },
+      "playerDisplayFields": [
+        {
+          "_note": "OPTIONAL array. Defines per-player stats shown next to each player on the table.",
+          "_note2": "Values are read from state.metadata.playerData[playerId][key]. Use defaultValue if key might be missing.",
+          "key": "playerChips",
+          "label": "Chips",
+          "icon": "🪙",
+          "format": "number",
+          "_format_choose": ["number", "text"],
+          "defaultValue": 1000
+        }
+      ],
+      "_playerDisplayFields_note": "Use for: chip counts (Poker), score (point games), health (custom games), etc.",
+      "gameDisplayFields": [
+        {
+          "_note": "OPTIONAL array. Defines game-wide stats shown at top of table (visible to all).",
+          "_note2": "Values are read from state.metadata[key]. Use defaultValue if key might be missing.",
+          "key": "pot",
+          "label": "Pot",
+          "icon": "🏆",
+          "format": "number",
+          "defaultValue": 0
+        }
+      ],
+      "_gameDisplayFields_note": "Use for: pot size (Poker), round number, deck remaining, etc."
     },
 
 
@@ -370,6 +534,23 @@ GAME_TEMPLATE = r'''{
       "score":      "Add or subtract points.",
       "any":        "No-op / cosmetic.",
       "cancel":     "Cancels previous action."
+    },
+
+    "_builtin_actionType_reference": {
+      "_note": "These actionTypes are handled natively by the universal engine. Use them in defaultActions.",
+      "play_card":    "Play a card from hand (standard turn action).",
+      "draw_card":    "Draw card(s) from the deck. Draws max(1, drawCount) cards.",
+      "stay":         "End turn without acting (e.g. 'Stay' in Flip Seven, bank points).",
+      "check":        "Pass without betting when no bet is active (poker). Same as stay internally.",
+      "bet":          "Place a bet. Requires inputType:'number', amount from metadata. Resets roundActedPlayers.",
+      "call":         "Match the current bet (poker). Amount auto-calculated from currentBet.",
+      "raise":        "Increase the current bet. Requires inputType:'number'. Resets roundActedPlayers.",
+      "fold":         "Fold — player is eliminated from the round.",
+      "all_in":       "Bet all remaining chips.",
+      "choose_color": "Choose a color (wild card resolution). Requires inputType:'choice'.",
+      "call_uno":     "Declare UNO (1 card left).",
+      "catch_uno":    "Catch opponent who forgot UNO.",
+      "challenge":    "Challenge a play."
     },
 
     "_card_metadata_reference": {
@@ -414,30 +595,72 @@ def research_game_rules(game_name: str) -> str:
                 {
                     "role": "system",
                     "content": (
-                        "You are a card game rules expert. Provide comprehensive, "
-                        "detailed rules for card games. Include: all card types and "
-                        "their quantities, setup instructions, turn structure, special "
-                        "rules, and win conditions. Be exhaustive and precise about "
-                        "numbers and mechanics."
+                        "You are a world-class card game rules authority who ONLY "
+                        "provides OFFICIAL, PUBLISHED rules. You treat game rules "
+                        "like a legal document — every number, every edge case, every "
+                        "phase of play must be exact and verifiable. You NEVER "
+                        "improvise, simplify, or paraphrase rules. If something is "
+                        "ambiguous in the official rules, you explicitly note the "
+                        "ambiguity rather than guessing. You always cite the most "
+                        "authoritative source (official rulebook, publisher website, "
+                        "or tournament standard). Be exhaustive and precise."
                     ),
                 },
                 {
                     "role": "user",
                     "content": (
-                        f'Provide the complete official rules for the card game '
-                        f'"{game_name}". Include:\n'
-                        "1. All card types, their names, descriptions, and exact "
-                        "quantities in a standard deck\n"
-                        "2. Setup: how many cards each player gets, any special "
-                        "setup steps\n"
-                        "3. Turn structure: what happens on each turn, in order\n"
-                        "4. All special card effects and interactions\n"
-                        "5. Win condition(s)\n"
-                        "6. Any special rules (e.g. stacking, challenging, calling "
-                        "out)\n"
-                        "7. Player count range (min and max players)\n\n"
-                        "Be as detailed and precise as possible. Include exact card "
-                        "counts."
+                        f'Provide the COMPLETE, STRICT, OFFICIAL rules for the card '
+                        f'game "{game_name}". This will be used to build a digital '
+                        f'version, so every detail matters. Do NOT simplify or skip '
+                        f'anything.\n\n'
+                        "Provide ALL of the following sections with EXACT numbers:\n\n"
+                        "1. DECK COMPOSITION:\n"
+                        "   - Every distinct card type, its name, and EXACT count\n"
+                        "   - Total cards in the deck\n"
+                        "   - Card values/rankings if applicable (e.g. Ace high/low)\n"
+                        "   - Suits, colors, or categories if applicable\n\n"
+                        "2. GAME SETUP:\n"
+                        "   - Exact number of cards dealt to each player\n"
+                        "   - How the remaining deck is placed\n"
+                        "   - Any community/shared card areas and how they start\n"
+                        "   - Any forced bets (blinds, antes) with exact amounts\n"
+                        "   - Who goes first and how that is determined\n\n"
+                        "3. TURN STRUCTURE (step-by-step, in EXACT order):\n"
+                        "   - What the active player MUST do\n"
+                        "   - What the active player MAY do (optional actions)\n"
+                        "   - What they CANNOT do\n"
+                        "   - When the turn ends and how play passes\n\n"
+                        "4. GAME PHASES / ROUNDS (if the game has multiple phases):\n"
+                        "   - Name each phase (e.g. pre-flop, flop, turn, river)\n"
+                        "   - What triggers the transition between phases\n"
+                        "   - What happens automatically between phases (e.g. burn "
+                        "cards, deal community cards, reset bets)\n"
+                        "   - How many rounds/phases exist in total\n\n"
+                        "5. ALL AVAILABLE PLAYER ACTIONS:\n"
+                        "   - List EVERY action a player can take (e.g. hit, stay, "
+                        "bet, call, raise, fold, draw, discard, knock, etc.)\n"
+                        "   - The EXACT conditions under which each action is allowed\n"
+                        "   - The EXACT effect of each action on the game state\n"
+                        "   - Any minimum/maximum constraints (e.g. minimum raise "
+                        "amount, max hand size)\n\n"
+                        "6. SPECIAL CARD EFFECTS:\n"
+                        "   - Every card with a special ability\n"
+                        "   - Exact trigger and resolution\n"
+                        "   - Interaction with other special cards\n\n"
+                        "7. WIN CONDITION:\n"
+                        "   - EXACT condition(s) for winning\n"
+                        "   - How ties are broken\n"
+                        "   - Hand rankings if applicable (list ALL ranks in order)\n"
+                        "   - Scoring formula if applicable\n\n"
+                        "8. EDGE CASES & SPECIAL RULES:\n"
+                        "   - What happens if the deck runs out\n"
+                        "   - Rules for 2-player games vs multiplayer\n"
+                        "   - Any penalty rules\n"
+                        "   - Official variant rules (if commonly played)\n\n"
+                        "9. PLAYER COUNT: Exact minimum and maximum players\n\n"
+                        "IMPORTANT: Do NOT leave any numbers as 'varies' or "
+                        "'typically'. Give the EXACT official number. If there are "
+                        "multiple official variants, state the STANDARD version first."
                     ),
                 },
             ],
@@ -485,10 +708,23 @@ def generate_game_json(
         model="claude-sonnet-4-20250514",
         max_tokens=16384,
         system=(
-            "You are an expert card game engine developer. You generate game "
+            "You are an expert card game engine developer who generates game "
             "definition JSON files for a universal card game engine.\n\n"
-            "Your output must be ONLY valid JSON -- no markdown, no code fences, "
-            "no explanation text. Output the raw JSON object and nothing else."
+            "CRITICAL RULES:\n"
+            "1. Your output must be ONLY valid JSON — no markdown, no code fences, "
+            "no explanation text. Output the raw JSON object and nothing else.\n"
+            "2. You MUST faithfully implement EVERY rule from the researched rules. "
+            "Do NOT simplify, skip, or approximate any game mechanic.\n"
+            "3. Every player action described in the rules MUST appear as a "
+            "defaultAction with correct showCondition logic.\n"
+            "4. Game phases and automatic between-round actions (dealing community "
+            "cards, burning cards, resetting bets) MUST be encoded in roundActions.\n"
+            "5. All card counts, hand sizes, scoring values, and bet amounts must "
+            "match the official rules EXACTLY.\n"
+            "6. If the game has betting, you MUST include blinds/antes config, "
+            "chip tracking via playerDisplayFields, and pot/bet tracking via "
+            "gameDisplayFields.\n"
+            "7. Do NOT invent mechanics that are not in the researched rules."
         ),
         messages=[
             {
@@ -517,6 +753,42 @@ def generate_game_json(
                     "matching / stacking / color rules\n"
                     "13. The 'id' must match the intended filename "
                     "(e.g. 'crazy_eights' -> crazy_eights.json)\n"
+                    "\n"
+                    "--- CRITICAL: GAME ACTIONS & UI ---\n"
+                    "14. EVERY game with turn-based actions MUST have config.defaultActions.\n"
+                    "    - Betting games (poker, blackjack): check, bet, call, raise, fold, all_in buttons\n"
+                    "    - Draw-or-play games (Flip Seven, Go Fish): draw_card, stay buttons\n"
+                    "    - Standard card games (UNO): draw_card, play_card buttons\n"
+                    "    - Each action needs: id, label, icon, description, actionType, showCondition, color, inputType\n"
+                    "    - Use 'showCondition' with compound/metadata_equals/metadata_gt types for conditional visibility\n"
+                    "    - Use inputType 'button' for simple actions, 'number' for amounts, 'choice' for picking options\n"
+                    "    - See the _builtin_actionType_reference in the template for all engine-supported action types\n"
+                    "15. Games with betting MUST have config.blinds (smallBlind, bigBlind).\n"
+                    "16. Games with community cards or multi-phase dealing MUST have config.roundActions.\n"
+                    "    - Include burn_card before community deals (proper poker rules)\n"
+                    "    - Include reset_bets between betting rounds\n"
+                    "    - End with end_round at the final phase\n"
+                    "17. Define config.zones for ALL card areas:\n"
+                    "    - Deck zone (type: 'deck', isPublic: false)\n"
+                    "    - Community/shared zones if needed (isPublic: true)\n"
+                    "    - Burn zone if needed (isPublic: false)\n"
+                    "18. Use ui.playerDisplayFields for per-player stats (chips, score, bet).\n"
+                    "19. Use ui.gameDisplayFields for game-wide stats (pot, round number, current bet).\n"
+                    "20. Use ui.layout to control visibility: hideDrawPile, hideDiscardPile, showZones, showScoreboard.\n"
+                    "\n"
+                    "--- RULES FIDELITY (MANDATORY) ---\n"
+                    "21. Cross-check EVERY mechanic in your JSON against the researched rules above.\n"
+                    "    - If the rules say 'burn a card before the flop', your roundActions MUST include burn_card.\n"
+                    "    - If the rules say 'small blind 10, big blind 20', your blinds config MUST match.\n"
+                    "    - If the rules list specific player actions (hit, stay, double down, split, etc.), "
+                    "EACH ONE must be a defaultAction with correct showCondition.\n"
+                    "    - If the rules describe phases (pre-flop, flop, turn, river), "
+                    "EACH phase must be a roundActions entry.\n"
+                    "    - Card counts must be EXACT. A standard 52-card deck has 13 ranks x 4 suits = 52 cards.\n"
+                    "22. Do NOT omit actions because they seem minor. Every action a player can take in the "
+                    "real game MUST be represented.\n"
+                    "23. Do NOT simplify game flow. If there are 4 betting rounds in poker, there must be "
+                    "4 phases in roundActions (pre-flop betting is implicit, then flop, turn, river, showdown).\n"
                     f"{error_section}\n"
                     "Output ONLY the JSON object, nothing else."
                 ),
@@ -704,8 +976,23 @@ def generate_game_plugin(
 
     The plugin extends GamePluginBase and adds custom actions, effects,
     validation, and lifecycle hooks specific to the game.
+
+    Uses the actual engine source files (read at deploy time) so the AI
+    understands the full plugin architecture and available primitives:
+      - generic.py         : basic fallback engine (structure reference)
+      - plugin_loader.py   : how plugins are loaded and registered
+      - universal.py       : all effect primitives, actions, utilities
+      - game_plugin_base.py: base class to inherit from
+      - uno.py             : well-structured example plugin
     """
     import anthropic
+
+    # Source files are read at deploy time and stored as module-level constants
+    generic_src = _SRC_GENERIC
+    plugin_loader_src = _SRC_PLUGIN_LOADER
+    universal_src = _SRC_UNIVERSAL
+    uno_plugin_src = _SRC_UNO_PLUGIN
+    plugin_base_src = _SRC_PLUGIN_BASE
 
     client = anthropic.Anthropic()
 
@@ -726,30 +1013,88 @@ def generate_game_plugin(
                 "content": (
                     f'Generate a Python plugin file for the card game "{game_name}" '
                     f"(game_id: {game_id}).\n\n"
+                    "SYSTEM ARCHITECTURE OVERVIEW:\n"
+                    "The engine has a layered architecture:\n"
+                    "1. generic.py   - Basic fallback engine for simple card games\n"
+                    "2. universal.py - Full data-driven engine with all effect "
+                    "primitives (number, skip, reverse, draw, wild, eliminate, "
+                    "defuse, peek, shuffle, steal, give, insert, extra_turn, "
+                    "swap_hands, score, etc.)\n"
+                    "3. Game plugins - Game-specific customizations that hook into "
+                    "universal.py via GamePluginBase\n"
+                    "4. plugin_loader.py - Dynamically loads & registers plugins\n\n"
+                    "Your plugin will be loaded by plugin_loader.py and called by "
+                    "universal.py at the appropriate lifecycle points. Study the "
+                    "source files below to understand what the engine ALREADY "
+                    "handles (so you don't duplicate logic) and what needs a "
+                    "plugin hook.\n\n"
+                    f"--- GENERIC ENGINE (basic engine structure reference) ---\n"
+                    f"{generic_src}\n--- END GENERIC ENGINE ---\n\n"
+                    f"--- PLUGIN LOADER (how plugins are loaded and integrated) "
+                    f"---\n"
+                    f"{plugin_loader_src}\n--- END PLUGIN LOADER ---\n\n"
+                    f"--- UNIVERSAL ENGINE (all available effect primitives, "
+                    f"actions, and utilities your plugin can leverage) ---\n"
+                    f"{universal_src}\n--- END UNIVERSAL ENGINE ---\n\n"
                     f"--- PLUGIN BASE CLASS (inherit from this) ---\n"
-                    f"{_PLUGIN_BASE}\n--- END BASE CLASS ---\n\n"
-                    f"--- EXAMPLE PLUGIN (UNO -- follow this pattern) ---\n"
-                    f"{_UNO_PLUGIN_EXAMPLE}\n--- END EXAMPLE ---\n\n"
-                    f"--- GAME RULES (researched) ---\n{rules_text}\n--- END RULES ---\n\n"
-                    f"--- GAME JSON DEFINITION ---\n{game_json_str}\n--- END JSON ---\n\n"
+                    f"{plugin_base_src}\n--- END BASE CLASS ---\n\n"
+                    f"--- EXAMPLE: UNO PLUGIN (well-structured minimal plugin) "
+                    f"---\n"
+                    f"{uno_plugin_src}\n--- END EXAMPLE ---\n\n"
+                    f"--- GAME RULES (researched) ---\n{rules_text}\n"
+                    f"--- END RULES ---\n\n"
+                    f"--- GAME JSON DEFINITION ---\n{game_json_str}\n"
+                    f"--- END JSON ---\n\n"
                     "Requirements:\n"
                     "1. Create a class that inherits from GamePluginBase\n"
-                    "2. The class name should be PascalCase of the game name + 'Plugin' "
-                    f"(e.g. '{game_name.replace(' ', '')}Plugin')\n"
-                    "3. Implement get_custom_actions() for any game-specific actions "
-                    "(e.g. special calls, challenges, choices)\n"
-                    "4. Implement on_card_played() for card-specific validation\n"
-                    "5. Implement validate_card_play() for play-legality rules\n"
-                    "6. Use the same imports as the UNO example\n"
-                    "7. Include a create_plugin(game_config) factory function at the bottom\n"
-                    "8. Use helper functions from universal engine via lazy imports:\n"
-                    "   from app.services.engines.universal import _draw_n, _advance_turn, _discard_zone\n"
-                    "9. Add game log entries using LogEntry for important actions\n"
-                    "10. Handle edge cases gracefully (missing players, empty hands, etc.)\n"
-                    "11. Only implement hooks that the game actually needs -- leave others "
-                    "as the base class default\n"
-                    "12. If the game has no special mechanics beyond what universal.py "
-                    "handles, create a minimal plugin with just the factory function\n\n"
+                    "2. The class name should be PascalCase of the game name + "
+                    f"'Plugin' (e.g. '{game_name.replace(' ', '')}Plugin')\n"
+                    "3. Only implement get_custom_actions() for game-specific "
+                    "actions that are NOT already handled by universal.py "
+                    "(check the universal engine source to see what is built "
+                    "in)\n"
+                    "\n"
+                    "IMPORTANT: The universal engine ALREADY handles these "
+                    "action types natively — do NOT reimplement them:\n"
+                    "  - play_card, draw_card, stay, check, bet, call, raise, "
+                    "fold, all_in, choose_color, call_uno, catch_uno, challenge\n"
+                    "  - Betting logic (deducting chips, updating pot, "
+                    "currentBet, re-opening round on raise)\n"
+                    "  - Blind posting (config.blinds)\n"
+                    "  - Round actions (config.roundActions: burn_card, "
+                    "deal_to_zone, reset_bets, end_round, log)\n"
+                    "  - Player/game display fields (ui.playerDisplayFields, "
+                    "ui.gameDisplayFields)\n"
+                    "  - Zone management (custom zones, draw/discard piles)\n"
+                    "Only add plugin hooks for mechanics the engine does NOT "
+                    "handle (e.g. hand evaluation for poker showdown, combo "
+                    "detection, special scoring rules).\n"
+                    "\n"
+                    "4. Implement on_card_played() for any card-specific state "
+                    "tracking (see how UNO tracks Wild Draw 4 legality)\n"
+                    "5. Implement validate_card_play() for additional play-"
+                    "legality rules beyond what universal.py already enforces\n"
+                    "6. Import from the engine only what you need:\n"
+                    "   from app.services.engines.game_plugin_base import "
+                    "GamePluginBase\n"
+                    "   from app.models.game import GameState, Player, Card, "
+                    "LogEntry\n"
+                    "   from app.services.engines.universal import _draw_n, "
+                    "_advance_turn, _discard_zone  # as needed\n"
+                    "7. Include a create_plugin(game_config) factory function "
+                    "at the bottom\n"
+                    "8. Add game log entries using LogEntry for important "
+                    "actions\n"
+                    "9. Handle edge cases gracefully (missing players, empty "
+                    "hands, etc.)\n"
+                    "10. Only implement hooks that the game actually needs -- "
+                    "leave others as the base class default\n"
+                    "11. If the game has no special mechanics beyond what "
+                    "universal.py handles, create a minimal plugin like the "
+                    "UNO example (just lifecycle hooks + factory function)\n"
+                    "12. Follow the exact pattern shown in the UNO plugin "
+                    "example: module docstring, imports, class, lifecycle "
+                    "hooks, factory function\n\n"
                     "Output ONLY the Python code, nothing else."
                 ),
             }
@@ -863,9 +1208,142 @@ def validate_in_sandbox(game_json_str: str) -> dict:
         errors.append(f"Not enough cards ({total}) to deal {hs} to {min_p} players ({need} needed)")
 
     # 7. Config artefacts
-    for k in list(game.get("config", {}).keys()):
+    cfg = game.get("config", {})
+    for k in list(cfg.keys()):
         if k.startswith("_"):
             errors.append(f"Config: template key '{k}'")
+
+    # 7b. Require defaultActions — every card game needs player action buttons
+    _VALID_ACTION_TYPES = {
+        "play_card", "draw_card", "stay", "check", "bet", "call",
+        "raise", "fold", "all_in", "choose_color", "call_uno",
+        "catch_uno", "challenge",
+    }
+    _VALID_INPUT_TYPES = {"button", "number", "choice"}
+    default_actions = cfg.get("defaultActions", [])
+
+    # Every game MUST have at least one defaultAction for the UI to work
+    if not default_actions:
+        errors.append(
+            "config.defaultActions is REQUIRED but missing. "
+            "Every game needs action buttons (e.g. draw_card, play_card, "
+            "stay, check, bet, fold). Add defaultActions with at least: "
+            "id, label, actionType, showCondition, color, inputType for "
+            "each player action the game supports."
+        )
+
+    # Detect game type from rules and check for expected actions
+    turn_struct = rules.get("turnStructure", {})
+    has_draw = turn_struct.get("drawCount", 0) > 0
+    can_pass = turn_struct.get("canPassTurn", False)
+    has_betting = bool(cfg.get("blinds"))
+    action_types_present = {da.get("actionType") for da in default_actions}
+
+    # Games with drawing need a draw button
+    if has_draw and "draw_card" not in action_types_present and default_actions:
+        warnings.append(
+            "Game has drawCount > 0 but no 'draw_card' defaultAction. "
+            "Players may not be able to draw cards."
+        )
+
+    # Games where passing is allowed need a stay/check button
+    if can_pass and not (action_types_present & {"stay", "check"}) and default_actions:
+        warnings.append(
+            "Game has canPassTurn=true but no 'stay' or 'check' defaultAction. "
+            "Players may not be able to end their turn."
+        )
+
+    # Betting games need the full set of betting actions
+    if has_betting:
+        required_betting = {"check", "bet", "fold"}
+        missing_betting = required_betting - action_types_present
+        if missing_betting:
+            errors.append(
+                f"Game has config.blinds (betting game) but is missing "
+                f"required betting actions: {', '.join(sorted(missing_betting))}. "
+                f"Betting games must have at least: check, bet, call, raise, "
+                f"fold, all_in defaultActions."
+            )
+
+    # Games with community zones likely need roundActions
+    has_community = any(
+        z.get("isPublic") and z.get("type") != "deck"
+        for z in cfg.get("zones", [])
+        if z.get("id") not in ("discard_pile", "burn")
+    )
+    if has_community and not cfg.get("roundActions"):
+        warnings.append(
+            "Game has public community zones but no roundActions defined. "
+            "Community cards typically need roundActions to deal them "
+            "automatically between betting rounds (e.g. flop/turn/river in poker)."
+        )
+
+    for i, da in enumerate(default_actions):
+        da_id = da.get("id", f"action_{i}")
+        for f in ("id", "label", "actionType", "showCondition", "inputType"):
+            if f not in da:
+                errors.append(f"defaultAction '{da_id}': missing '{f}'")
+        if da.get("actionType") and da["actionType"] not in _VALID_ACTION_TYPES:
+            warnings.append(
+                f"defaultAction '{da_id}': actionType '{da['actionType']}' "
+                f"is not a built-in type — ensure a plugin handles it"
+            )
+        if da.get("inputType") and da["inputType"] not in _VALID_INPUT_TYPES:
+            errors.append(
+                f"defaultAction '{da_id}': invalid inputType '{da['inputType']}'"
+            )
+        if da.get("inputType") in ("number", "choice") and "inputConfig" not in da:
+            errors.append(
+                f"defaultAction '{da_id}': inputType '{da['inputType']}' "
+                f"requires 'inputConfig'"
+            )
+        for k in list(da.keys()):
+            if k.startswith("_"):
+                errors.append(f"defaultAction '{da_id}': template key '{k}'")
+
+    # 7c. Validate roundActions structure
+    _VALID_ROUND_ACTION_TYPES = {
+        "burn_card", "deal_to_zone", "reset_bets", "end_round", "log",
+    }
+    round_actions = cfg.get("roundActions", [])
+    zone_ids = {z.get("id") for z in cfg.get("zones", [])}
+    for i, ra in enumerate(round_actions):
+        phase_name = ra.get("phase", f"phase_{i}")
+        if "actions" not in ra:
+            errors.append(f"roundAction '{phase_name}': missing 'actions' array")
+            continue
+        for j, act in enumerate(ra.get("actions", [])):
+            act_type = act.get("type")
+            if not act_type:
+                errors.append(
+                    f"roundAction '{phase_name}' action {j}: missing 'type'"
+                )
+            elif act_type not in _VALID_ROUND_ACTION_TYPES:
+                errors.append(
+                    f"roundAction '{phase_name}' action {j}: "
+                    f"invalid type '{act_type}'"
+                )
+            if act_type == "deal_to_zone":
+                zone = act.get("zone", "")
+                if zone and zone_ids and zone not in zone_ids:
+                    errors.append(
+                        f"roundAction '{phase_name}' action {j}: "
+                        f"zone '{zone}' not defined in config.zones"
+                    )
+            for k in list(act.keys()):
+                if k.startswith("_"):
+                    errors.append(
+                        f"roundAction '{phase_name}' action {j}: "
+                        f"template key '{k}'"
+                    )
+
+    # 7d. Validate blinds structure
+    blinds = cfg.get("blinds")
+    if blinds:
+        if "smallBlind" not in blinds or "bigBlind" not in blinds:
+            errors.append("config.blinds must have 'smallBlind' and 'bigBlind'")
+        elif blinds.get("smallBlind", 0) >= blinds.get("bigBlind", 0):
+            warnings.append("config.blinds: smallBlind should be less than bigBlind")
 
     # 8. UI
     ui = game.get("ui", {})

@@ -1,0 +1,1552 @@
+{
+  "id": "three_card_poker",
+  "name": "Three Card Poker",
+  "description": "A simplified poker variant for exactly 3 players using poker hand rankings.",
+  "version": "1.0.0",
+  "themeColor": "#059669",
+  "backgroundEmoji": "\u2660\ufe0f",
+  "rules": {
+    "minPlayers": 3,
+    "maxPlayers": 3,
+    "handSize": 3,
+    "turnStructure": {
+      "phases": [
+        {
+          "id": "ante",
+          "name": "Place Ante",
+          "description": "All players place their ante bet.",
+          "isOptional": false
+        },
+        {
+          "id": "play_fold",
+          "name": "Play or Fold",
+          "description": "Decide whether to play your hand or fold.",
+          "isOptional": false
+        }
+      ],
+      "canPassTurn": false,
+      "mustPlayCard": false,
+      "drawCount": 0
+    },
+    "winCondition": {
+      "type": "most_points",
+      "description": "Player with the highest poker hand ranking wins the round!",
+      "metadata": {}
+    },
+    "specialRules": [
+      {
+        "id": "poker_rankings",
+        "name": "Poker Hand Rankings",
+        "trigger": "on_play",
+        "description": "Hands ranked from highest to lowest: Straight Flush, Three of a Kind, Straight, Flush, Pair, High Card."
+      },
+      {
+        "id": "ante_system",
+        "name": "Ante Betting",
+        "trigger": "on_turn_end",
+        "description": "All players must ante before seeing their cards. Winner takes all antes."
+      }
+    ]
+  },
+  "config": {
+    "matchColor": false,
+    "matchNumber": false,
+    "matchType": false,
+    "wildAlwaysPlayable": false,
+    "stackableDraw": false,
+    "reverseEqualsSkipTwoPlayers": false,
+    "startWithDiscard": false,
+    "excludeFromStartDiscard": [],
+    "drawUntilPlayable": false,
+    "zones": [
+      {
+        "id": "draw_pile",
+        "name": "Deck",
+        "type": "deck",
+        "isPublic": false
+      },
+      {
+        "id": "player_hands",
+        "name": "Player Hands",
+        "type": "hand",
+        "isPublic": false
+      }
+    ]
+  },
+  "cards": [
+    {
+      "id": "ace_spades",
+      "name": "Ace of Spades",
+      "type": "number",
+      "subtype": "ace",
+      "emoji": "\ud83c\udca1",
+      "description": "Ace of Spades - High card value 14",
+      "effects": [
+        {
+          "type": "number",
+          "value": 14,
+          "target": "self",
+          "description": "Ace high card",
+          "metadata": {
+            "suit": "spades",
+            "rank": 14
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "spades",
+        "rank": 14,
+        "points": 14
+      }
+    },
+    {
+      "id": "king_spades",
+      "name": "King of Spades",
+      "type": "number",
+      "subtype": "king",
+      "emoji": "\ud83c\udcae",
+      "description": "King of Spades - High card value 13",
+      "effects": [
+        {
+          "type": "number",
+          "value": 13,
+          "target": "self",
+          "description": "King high card",
+          "metadata": {
+            "suit": "spades",
+            "rank": 13
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "spades",
+        "rank": 13,
+        "points": 13
+      }
+    },
+    {
+      "id": "queen_spades",
+      "name": "Queen of Spades",
+      "type": "number",
+      "subtype": "queen",
+      "emoji": "\ud83c\udcad",
+      "description": "Queen of Spades - High card value 12",
+      "effects": [
+        {
+          "type": "number",
+          "value": 12,
+          "target": "self",
+          "description": "Queen high card",
+          "metadata": {
+            "suit": "spades",
+            "rank": 12
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "spades",
+        "rank": 12,
+        "points": 12
+      }
+    },
+    {
+      "id": "jack_spades",
+      "name": "Jack of Spades",
+      "type": "number",
+      "subtype": "jack",
+      "emoji": "\ud83c\udcab",
+      "description": "Jack of Spades - High card value 11",
+      "effects": [
+        {
+          "type": "number",
+          "value": 11,
+          "target": "self",
+          "description": "Jack high card",
+          "metadata": {
+            "suit": "spades",
+            "rank": 11
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "spades",
+        "rank": 11,
+        "points": 11
+      }
+    },
+    {
+      "id": "ten_spades",
+      "name": "Ten of Spades",
+      "type": "number",
+      "subtype": "ten",
+      "emoji": "\ud83c\udcaa",
+      "description": "Ten of Spades - High card value 10",
+      "effects": [
+        {
+          "type": "number",
+          "value": 10,
+          "target": "self",
+          "description": "Ten high card",
+          "metadata": {
+            "suit": "spades",
+            "rank": 10
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "spades",
+        "rank": 10,
+        "points": 10
+      }
+    },
+    {
+      "id": "nine_spades",
+      "name": "Nine of Spades",
+      "type": "number",
+      "subtype": "nine",
+      "emoji": "\ud83c\udca9",
+      "description": "Nine of Spades - High card value 9",
+      "effects": [
+        {
+          "type": "number",
+          "value": 9,
+          "target": "self",
+          "description": "Nine high card",
+          "metadata": {
+            "suit": "spades",
+            "rank": 9
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "spades",
+        "rank": 9,
+        "points": 9
+      }
+    },
+    {
+      "id": "eight_spades",
+      "name": "Eight of Spades",
+      "type": "number",
+      "subtype": "eight",
+      "emoji": "\ud83c\udca8",
+      "description": "Eight of Spades - High card value 8",
+      "effects": [
+        {
+          "type": "number",
+          "value": 8,
+          "target": "self",
+          "description": "Eight high card",
+          "metadata": {
+            "suit": "spades",
+            "rank": 8
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "spades",
+        "rank": 8,
+        "points": 8
+      }
+    },
+    {
+      "id": "seven_spades",
+      "name": "Seven of Spades",
+      "type": "number",
+      "subtype": "seven",
+      "emoji": "\ud83c\udca7",
+      "description": "Seven of Spades - High card value 7",
+      "effects": [
+        {
+          "type": "number",
+          "value": 7,
+          "target": "self",
+          "description": "Seven high card",
+          "metadata": {
+            "suit": "spades",
+            "rank": 7
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "spades",
+        "rank": 7,
+        "points": 7
+      }
+    },
+    {
+      "id": "six_spades",
+      "name": "Six of Spades",
+      "type": "number",
+      "subtype": "six",
+      "emoji": "\ud83c\udca6",
+      "description": "Six of Spades - High card value 6",
+      "effects": [
+        {
+          "type": "number",
+          "value": 6,
+          "target": "self",
+          "description": "Six high card",
+          "metadata": {
+            "suit": "spades",
+            "rank": 6
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "spades",
+        "rank": 6,
+        "points": 6
+      }
+    },
+    {
+      "id": "five_spades",
+      "name": "Five of Spades",
+      "type": "number",
+      "subtype": "five",
+      "emoji": "\ud83c\udca5",
+      "description": "Five of Spades - High card value 5",
+      "effects": [
+        {
+          "type": "number",
+          "value": 5,
+          "target": "self",
+          "description": "Five high card",
+          "metadata": {
+            "suit": "spades",
+            "rank": 5
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "spades",
+        "rank": 5,
+        "points": 5
+      }
+    },
+    {
+      "id": "four_spades",
+      "name": "Four of Spades",
+      "type": "number",
+      "subtype": "four",
+      "emoji": "\ud83c\udca4",
+      "description": "Four of Spades - High card value 4",
+      "effects": [
+        {
+          "type": "number",
+          "value": 4,
+          "target": "self",
+          "description": "Four high card",
+          "metadata": {
+            "suit": "spades",
+            "rank": 4
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "spades",
+        "rank": 4,
+        "points": 4
+      }
+    },
+    {
+      "id": "three_spades",
+      "name": "Three of Spades",
+      "type": "number",
+      "subtype": "three",
+      "emoji": "\ud83c\udca3",
+      "description": "Three of Spades - High card value 3",
+      "effects": [
+        {
+          "type": "number",
+          "value": 3,
+          "target": "self",
+          "description": "Three high card",
+          "metadata": {
+            "suit": "spades",
+            "rank": 3
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "spades",
+        "rank": 3,
+        "points": 3
+      }
+    },
+    {
+      "id": "two_spades",
+      "name": "Two of Spades",
+      "type": "number",
+      "subtype": "two",
+      "emoji": "\ud83c\udca2",
+      "description": "Two of Spades - High card value 2",
+      "effects": [
+        {
+          "type": "number",
+          "value": 2,
+          "target": "self",
+          "description": "Two high card",
+          "metadata": {
+            "suit": "spades",
+            "rank": 2
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "spades",
+        "rank": 2,
+        "points": 2
+      }
+    },
+    {
+      "id": "ace_hearts",
+      "name": "Ace of Hearts",
+      "type": "number",
+      "subtype": "ace",
+      "emoji": "\ud83c\udcb1",
+      "description": "Ace of Hearts - High card value 14",
+      "effects": [
+        {
+          "type": "number",
+          "value": 14,
+          "target": "self",
+          "description": "Ace high card",
+          "metadata": {
+            "suit": "hearts",
+            "rank": 14
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "hearts",
+        "rank": 14,
+        "points": 14
+      }
+    },
+    {
+      "id": "king_hearts",
+      "name": "King of Hearts",
+      "type": "number",
+      "subtype": "king",
+      "emoji": "\ud83c\udcbe",
+      "description": "King of Hearts - High card value 13",
+      "effects": [
+        {
+          "type": "number",
+          "value": 13,
+          "target": "self",
+          "description": "King high card",
+          "metadata": {
+            "suit": "hearts",
+            "rank": 13
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "hearts",
+        "rank": 13,
+        "points": 13
+      }
+    },
+    {
+      "id": "queen_hearts",
+      "name": "Queen of Hearts",
+      "type": "number",
+      "subtype": "queen",
+      "emoji": "\ud83c\udcbd",
+      "description": "Queen of Hearts - High card value 12",
+      "effects": [
+        {
+          "type": "number",
+          "value": 12,
+          "target": "self",
+          "description": "Queen high card",
+          "metadata": {
+            "suit": "hearts",
+            "rank": 12
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "hearts",
+        "rank": 12,
+        "points": 12
+      }
+    },
+    {
+      "id": "jack_hearts",
+      "name": "Jack of Hearts",
+      "type": "number",
+      "subtype": "jack",
+      "emoji": "\ud83c\udcbb",
+      "description": "Jack of Hearts - High card value 11",
+      "effects": [
+        {
+          "type": "number",
+          "value": 11,
+          "target": "self",
+          "description": "Jack high card",
+          "metadata": {
+            "suit": "hearts",
+            "rank": 11
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "hearts",
+        "rank": 11,
+        "points": 11
+      }
+    },
+    {
+      "id": "ten_hearts",
+      "name": "Ten of Hearts",
+      "type": "number",
+      "subtype": "ten",
+      "emoji": "\ud83c\udcba",
+      "description": "Ten of Hearts - High card value 10",
+      "effects": [
+        {
+          "type": "number",
+          "value": 10,
+          "target": "self",
+          "description": "Ten high card",
+          "metadata": {
+            "suit": "hearts",
+            "rank": 10
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "hearts",
+        "rank": 10,
+        "points": 10
+      }
+    },
+    {
+      "id": "nine_hearts",
+      "name": "Nine of Hearts",
+      "type": "number",
+      "subtype": "nine",
+      "emoji": "\ud83c\udcb9",
+      "description": "Nine of Hearts - High card value 9",
+      "effects": [
+        {
+          "type": "number",
+          "value": 9,
+          "target": "self",
+          "description": "Nine high card",
+          "metadata": {
+            "suit": "hearts",
+            "rank": 9
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "hearts",
+        "rank": 9,
+        "points": 9
+      }
+    },
+    {
+      "id": "eight_hearts",
+      "name": "Eight of Hearts",
+      "type": "number",
+      "subtype": "eight",
+      "emoji": "\ud83c\udcb8",
+      "description": "Eight of Hearts - High card value 8",
+      "effects": [
+        {
+          "type": "number",
+          "value": 8,
+          "target": "self",
+          "description": "Eight high card",
+          "metadata": {
+            "suit": "hearts",
+            "rank": 8
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "hearts",
+        "rank": 8,
+        "points": 8
+      }
+    },
+    {
+      "id": "seven_hearts",
+      "name": "Seven of Hearts",
+      "type": "number",
+      "subtype": "seven",
+      "emoji": "\ud83c\udcb7",
+      "description": "Seven of Hearts - High card value 7",
+      "effects": [
+        {
+          "type": "number",
+          "value": 7,
+          "target": "self",
+          "description": "Seven high card",
+          "metadata": {
+            "suit": "hearts",
+            "rank": 7
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "hearts",
+        "rank": 7,
+        "points": 7
+      }
+    },
+    {
+      "id": "six_hearts",
+      "name": "Six of Hearts",
+      "type": "number",
+      "subtype": "six",
+      "emoji": "\ud83c\udcb6",
+      "description": "Six of Hearts - High card value 6",
+      "effects": [
+        {
+          "type": "number",
+          "value": 6,
+          "target": "self",
+          "description": "Six high card",
+          "metadata": {
+            "suit": "hearts",
+            "rank": 6
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "hearts",
+        "rank": 6,
+        "points": 6
+      }
+    },
+    {
+      "id": "five_hearts",
+      "name": "Five of Hearts",
+      "type": "number",
+      "subtype": "five",
+      "emoji": "\ud83c\udcb5",
+      "description": "Five of Hearts - High card value 5",
+      "effects": [
+        {
+          "type": "number",
+          "value": 5,
+          "target": "self",
+          "description": "Five high card",
+          "metadata": {
+            "suit": "hearts",
+            "rank": 5
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "hearts",
+        "rank": 5,
+        "points": 5
+      }
+    },
+    {
+      "id": "four_hearts",
+      "name": "Four of Hearts",
+      "type": "number",
+      "subtype": "four",
+      "emoji": "\ud83c\udcb4",
+      "description": "Four of Hearts - High card value 4",
+      "effects": [
+        {
+          "type": "number",
+          "value": 4,
+          "target": "self",
+          "description": "Four high card",
+          "metadata": {
+            "suit": "hearts",
+            "rank": 4
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "hearts",
+        "rank": 4,
+        "points": 4
+      }
+    },
+    {
+      "id": "three_hearts",
+      "name": "Three of Hearts",
+      "type": "number",
+      "subtype": "three",
+      "emoji": "\ud83c\udcb3",
+      "description": "Three of Hearts - High card value 3",
+      "effects": [
+        {
+          "type": "number",
+          "value": 3,
+          "target": "self",
+          "description": "Three high card",
+          "metadata": {
+            "suit": "hearts",
+            "rank": 3
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "hearts",
+        "rank": 3,
+        "points": 3
+      }
+    },
+    {
+      "id": "two_hearts",
+      "name": "Two of Hearts",
+      "type": "number",
+      "subtype": "two",
+      "emoji": "\ud83c\udcb2",
+      "description": "Two of Hearts - High card value 2",
+      "effects": [
+        {
+          "type": "number",
+          "value": 2,
+          "target": "self",
+          "description": "Two high card",
+          "metadata": {
+            "suit": "hearts",
+            "rank": 2
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "hearts",
+        "rank": 2,
+        "points": 2
+      }
+    },
+    {
+      "id": "ace_diamonds",
+      "name": "Ace of Diamonds",
+      "type": "number",
+      "subtype": "ace",
+      "emoji": "\ud83c\udcc1",
+      "description": "Ace of Diamonds - High card value 14",
+      "effects": [
+        {
+          "type": "number",
+          "value": 14,
+          "target": "self",
+          "description": "Ace high card",
+          "metadata": {
+            "suit": "diamonds",
+            "rank": 14
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "diamonds",
+        "rank": 14,
+        "points": 14
+      }
+    },
+    {
+      "id": "king_diamonds",
+      "name": "King of Diamonds",
+      "type": "number",
+      "subtype": "king",
+      "emoji": "\ud83c\udcce",
+      "description": "King of Diamonds - High card value 13",
+      "effects": [
+        {
+          "type": "number",
+          "value": 13,
+          "target": "self",
+          "description": "King high card",
+          "metadata": {
+            "suit": "diamonds",
+            "rank": 13
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "diamonds",
+        "rank": 13,
+        "points": 13
+      }
+    },
+    {
+      "id": "queen_diamonds",
+      "name": "Queen of Diamonds",
+      "type": "number",
+      "subtype": "queen",
+      "emoji": "\ud83c\udccd",
+      "description": "Queen of Diamonds - High card value 12",
+      "effects": [
+        {
+          "type": "number",
+          "value": 12,
+          "target": "self",
+          "description": "Queen high card",
+          "metadata": {
+            "suit": "diamonds",
+            "rank": 12
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "diamonds",
+        "rank": 12,
+        "points": 12
+      }
+    },
+    {
+      "id": "jack_diamonds",
+      "name": "Jack of Diamonds",
+      "type": "number",
+      "subtype": "jack",
+      "emoji": "\ud83c\udccb",
+      "description": "Jack of Diamonds - High card value 11",
+      "effects": [
+        {
+          "type": "number",
+          "value": 11,
+          "target": "self",
+          "description": "Jack high card",
+          "metadata": {
+            "suit": "diamonds",
+            "rank": 11
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "diamonds",
+        "rank": 11,
+        "points": 11
+      }
+    },
+    {
+      "id": "ten_diamonds",
+      "name": "Ten of Diamonds",
+      "type": "number",
+      "subtype": "ten",
+      "emoji": "\ud83c\udcca",
+      "description": "Ten of Diamonds - High card value 10",
+      "effects": [
+        {
+          "type": "number",
+          "value": 10,
+          "target": "self",
+          "description": "Ten high card",
+          "metadata": {
+            "suit": "diamonds",
+            "rank": 10
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "diamonds",
+        "rank": 10,
+        "points": 10
+      }
+    },
+    {
+      "id": "nine_diamonds",
+      "name": "Nine of Diamonds",
+      "type": "number",
+      "subtype": "nine",
+      "emoji": "\ud83c\udcc9",
+      "description": "Nine of Diamonds - High card value 9",
+      "effects": [
+        {
+          "type": "number",
+          "value": 9,
+          "target": "self",
+          "description": "Nine high card",
+          "metadata": {
+            "suit": "diamonds",
+            "rank": 9
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "diamonds",
+        "rank": 9,
+        "points": 9
+      }
+    },
+    {
+      "id": "eight_diamonds",
+      "name": "Eight of Diamonds",
+      "type": "number",
+      "subtype": "eight",
+      "emoji": "\ud83c\udcc8",
+      "description": "Eight of Diamonds - High card value 8",
+      "effects": [
+        {
+          "type": "number",
+          "value": 8,
+          "target": "self",
+          "description": "Eight high card",
+          "metadata": {
+            "suit": "diamonds",
+            "rank": 8
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "diamonds",
+        "rank": 8,
+        "points": 8
+      }
+    },
+    {
+      "id": "seven_diamonds",
+      "name": "Seven of Diamonds",
+      "type": "number",
+      "subtype": "seven",
+      "emoji": "\ud83c\udcc7",
+      "description": "Seven of Diamonds - High card value 7",
+      "effects": [
+        {
+          "type": "number",
+          "value": 7,
+          "target": "self",
+          "description": "Seven high card",
+          "metadata": {
+            "suit": "diamonds",
+            "rank": 7
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "diamonds",
+        "rank": 7,
+        "points": 7
+      }
+    },
+    {
+      "id": "six_diamonds",
+      "name": "Six of Diamonds",
+      "type": "number",
+      "subtype": "six",
+      "emoji": "\ud83c\udcc6",
+      "description": "Six of Diamonds - High card value 6",
+      "effects": [
+        {
+          "type": "number",
+          "value": 6,
+          "target": "self",
+          "description": "Six high card",
+          "metadata": {
+            "suit": "diamonds",
+            "rank": 6
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "diamonds",
+        "rank": 6,
+        "points": 6
+      }
+    },
+    {
+      "id": "five_diamonds",
+      "name": "Five of Diamonds",
+      "type": "number",
+      "subtype": "five",
+      "emoji": "\ud83c\udcc5",
+      "description": "Five of Diamonds - High card value 5",
+      "effects": [
+        {
+          "type": "number",
+          "value": 5,
+          "target": "self",
+          "description": "Five high card",
+          "metadata": {
+            "suit": "diamonds",
+            "rank": 5
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "diamonds",
+        "rank": 5,
+        "points": 5
+      }
+    },
+    {
+      "id": "four_diamonds",
+      "name": "Four of Diamonds",
+      "type": "number",
+      "subtype": "four",
+      "emoji": "\ud83c\udcc4",
+      "description": "Four of Diamonds - High card value 4",
+      "effects": [
+        {
+          "type": "number",
+          "value": 4,
+          "target": "self",
+          "description": "Four high card",
+          "metadata": {
+            "suit": "diamonds",
+            "rank": 4
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "diamonds",
+        "rank": 4,
+        "points": 4
+      }
+    },
+    {
+      "id": "three_diamonds",
+      "name": "Three of Diamonds",
+      "type": "number",
+      "subtype": "three",
+      "emoji": "\ud83c\udcc3",
+      "description": "Three of Diamonds - High card value 3",
+      "effects": [
+        {
+          "type": "number",
+          "value": 3,
+          "target": "self",
+          "description": "Three high card",
+          "metadata": {
+            "suit": "diamonds",
+            "rank": 3
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "diamonds",
+        "rank": 3,
+        "points": 3
+      }
+    },
+    {
+      "id": "two_diamonds",
+      "name": "Two of Diamonds",
+      "type": "number",
+      "subtype": "two",
+      "emoji": "\ud83c\udcc2",
+      "description": "Two of Diamonds - High card value 2",
+      "effects": [
+        {
+          "type": "number",
+          "value": 2,
+          "target": "self",
+          "description": "Two high card",
+          "metadata": {
+            "suit": "diamonds",
+            "rank": 2
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "diamonds",
+        "rank": 2,
+        "points": 2
+      }
+    },
+    {
+      "id": "ace_clubs",
+      "name": "Ace of Clubs",
+      "type": "number",
+      "subtype": "ace",
+      "emoji": "\ud83c\udcd1",
+      "description": "Ace of Clubs - High card value 14",
+      "effects": [
+        {
+          "type": "number",
+          "value": 14,
+          "target": "self",
+          "description": "Ace high card",
+          "metadata": {
+            "suit": "clubs",
+            "rank": 14
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "clubs",
+        "rank": 14,
+        "points": 14
+      }
+    },
+    {
+      "id": "king_clubs",
+      "name": "King of Clubs",
+      "type": "number",
+      "subtype": "king",
+      "emoji": "\ud83c\udcde",
+      "description": "King of Clubs - High card value 13",
+      "effects": [
+        {
+          "type": "number",
+          "value": 13,
+          "target": "self",
+          "description": "King high card",
+          "metadata": {
+            "suit": "clubs",
+            "rank": 13
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "clubs",
+        "rank": 13,
+        "points": 13
+      }
+    },
+    {
+      "id": "queen_clubs",
+      "name": "Queen of Clubs",
+      "type": "number",
+      "subtype": "queen",
+      "emoji": "\ud83c\udcdd",
+      "description": "Queen of Clubs - High card value 12",
+      "effects": [
+        {
+          "type": "number",
+          "value": 12,
+          "target": "self",
+          "description": "Queen high card",
+          "metadata": {
+            "suit": "clubs",
+            "rank": 12
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "clubs",
+        "rank": 12,
+        "points": 12
+      }
+    },
+    {
+      "id": "jack_clubs",
+      "name": "Jack of Clubs",
+      "type": "number",
+      "subtype": "jack",
+      "emoji": "\ud83c\udcdb",
+      "description": "Jack of Clubs - High card value 11",
+      "effects": [
+        {
+          "type": "number",
+          "value": 11,
+          "target": "self",
+          "description": "Jack high card",
+          "metadata": {
+            "suit": "clubs",
+            "rank": 11
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "clubs",
+        "rank": 11,
+        "points": 11
+      }
+    },
+    {
+      "id": "ten_clubs",
+      "name": "Ten of Clubs",
+      "type": "number",
+      "subtype": "ten",
+      "emoji": "\ud83c\udcda",
+      "description": "Ten of Clubs - High card value 10",
+      "effects": [
+        {
+          "type": "number",
+          "value": 10,
+          "target": "self",
+          "description": "Ten high card",
+          "metadata": {
+            "suit": "clubs",
+            "rank": 10
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "clubs",
+        "rank": 10,
+        "points": 10
+      }
+    },
+    {
+      "id": "nine_clubs",
+      "name": "Nine of Clubs",
+      "type": "number",
+      "subtype": "nine",
+      "emoji": "\ud83c\udcd9",
+      "description": "Nine of Clubs - High card value 9",
+      "effects": [
+        {
+          "type": "number",
+          "value": 9,
+          "target": "self",
+          "description": "Nine high card",
+          "metadata": {
+            "suit": "clubs",
+            "rank": 9
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "clubs",
+        "rank": 9,
+        "points": 9
+      }
+    },
+    {
+      "id": "eight_clubs",
+      "name": "Eight of Clubs",
+      "type": "number",
+      "subtype": "eight",
+      "emoji": "\ud83c\udcd8",
+      "description": "Eight of Clubs - High card value 8",
+      "effects": [
+        {
+          "type": "number",
+          "value": 8,
+          "target": "self",
+          "description": "Eight high card",
+          "metadata": {
+            "suit": "clubs",
+            "rank": 8
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "clubs",
+        "rank": 8,
+        "points": 8
+      }
+    },
+    {
+      "id": "seven_clubs",
+      "name": "Seven of Clubs",
+      "type": "number",
+      "subtype": "seven",
+      "emoji": "\ud83c\udcd7",
+      "description": "Seven of Clubs - High card value 7",
+      "effects": [
+        {
+          "type": "number",
+          "value": 7,
+          "target": "self",
+          "description": "Seven high card",
+          "metadata": {
+            "suit": "clubs",
+            "rank": 7
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "clubs",
+        "rank": 7,
+        "points": 7
+      }
+    },
+    {
+      "id": "six_clubs",
+      "name": "Six of Clubs",
+      "type": "number",
+      "subtype": "six",
+      "emoji": "\ud83c\udcd6",
+      "description": "Six of Clubs - High card value 6",
+      "effects": [
+        {
+          "type": "number",
+          "value": 6,
+          "target": "self",
+          "description": "Six high card",
+          "metadata": {
+            "suit": "clubs",
+            "rank": 6
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "clubs",
+        "rank": 6,
+        "points": 6
+      }
+    },
+    {
+      "id": "five_clubs",
+      "name": "Five of Clubs",
+      "type": "number",
+      "subtype": "five",
+      "emoji": "\ud83c\udcd5",
+      "description": "Five of Clubs - High card value 5",
+      "effects": [
+        {
+          "type": "number",
+          "value": 5,
+          "target": "self",
+          "description": "Five high card",
+          "metadata": {
+            "suit": "clubs",
+            "rank": 5
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "clubs",
+        "rank": 5,
+        "points": 5
+      }
+    },
+    {
+      "id": "four_clubs",
+      "name": "Four of Clubs",
+      "type": "number",
+      "subtype": "four",
+      "emoji": "\ud83c\udcd4",
+      "description": "Four of Clubs - High card value 4",
+      "effects": [
+        {
+          "type": "number",
+          "value": 4,
+          "target": "self",
+          "description": "Four high card",
+          "metadata": {
+            "suit": "clubs",
+            "rank": 4
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "clubs",
+        "rank": 4,
+        "points": 4
+      }
+    },
+    {
+      "id": "three_clubs",
+      "name": "Three of Clubs",
+      "type": "number",
+      "subtype": "three",
+      "emoji": "\ud83c\udcd3",
+      "description": "Three of Clubs - High card value 3",
+      "effects": [
+        {
+          "type": "number",
+          "value": 3,
+          "target": "self",
+          "description": "Three high card",
+          "metadata": {
+            "suit": "clubs",
+            "rank": 3
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "clubs",
+        "rank": 3,
+        "points": 3
+      }
+    },
+    {
+      "id": "two_clubs",
+      "name": "Two of Clubs",
+      "type": "number",
+      "subtype": "two",
+      "emoji": "\ud83c\udcd2",
+      "description": "Two of Clubs - High card value 2",
+      "effects": [
+        {
+          "type": "number",
+          "value": 2,
+          "target": "self",
+          "description": "Two high card",
+          "metadata": {
+            "suit": "clubs",
+            "rank": 2
+          }
+        }
+      ],
+      "isPlayable": true,
+      "isReaction": false,
+      "count": 1,
+      "metadata": {
+        "suit": "clubs",
+        "rank": 2,
+        "points": 2
+      }
+    }
+  ],
+  "ui": {
+    "tableBackground": "#166534",
+    "cardBack": "\ud83c\udca0",
+    "deckLabel": "Deck",
+    "discardLabel": "Played Cards",
+    "turnPrompt": "Reveal your 3-card hand and compare!",
+    "waitPrompt": "Waiting for all players to reveal...",
+    "winMessage": "\ud83c\udfc6 {playerName} wins with the best poker hand!",
+    "eliminatedMessage": "\ud83d\udc94 {playerName} folded",
+    "actionLabels": {
+      "play_card": "Play Hand",
+      "fold": "Fold",
+      "ante": "Place Ante"
+    },
+    "specialPrompts": {
+      "hand_comparison": "Comparing hands: Straight Flush > Three of a Kind > Straight > Flush > Pair > High Card"
+    }
+  }
+}

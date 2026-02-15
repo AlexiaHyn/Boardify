@@ -31,7 +31,10 @@ PLUGIN_MODULES = {
     # "poker": "app.services.engines.poker",
     # "uno_flip": "app.services.engines.uno_flip",
 
-    "go_fish": "app.services.engines.go_fish",}
+    "go_fish": "app.services.engines.go_fish",
+    "flip_seven": "app.services.engines.flip_seven",
+    "three_card_poker": "app.services.engines.three_card_poker",
+    "uno_draw_three": "app.services.engines.uno_draw_three",}
 
 
 def get_plugin(game_id: str, game_config: Dict[str, Any]) -> Optional[GamePluginBase]:

@@ -171,6 +171,7 @@ def create_initial_state(game_type: str, room_code: str, host_name: str) -> tupl
             "cardDefinitions": data["cards"],   # store raw defs for use during start_game
             "gameConfig": data.get("config", {}),
             "gameId": game_type,  # For plugin system
+            "uiConfig": data.get("ui", {}),  # UI layout hints for frontend
         },
     )
     return state, host_id

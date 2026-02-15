@@ -63,17 +63,6 @@ const BUILT_IN_GAMES: GameConfig[] = [
     gameType: 'exploding_kittens',
   },
   {
-    id: 1,
-    name: 'Poker',
-    description:
-      'The timeless game of skill, strategy, and nerve. Read your opponents, manage your chips, and claim the pot.',
-    emoji: '♠️',
-    accentColor: '#E63946',
-    accentColorRgb: '230, 57, 70',
-    playerCount: '2–8 players',
-    gameType: 'poker',
-  },
-  {
     id: 2,
     name: 'Uno',
     description:
