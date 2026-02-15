@@ -90,17 +90,6 @@
       "blue": "🔵",
       "wild": "🌈"
     },
-    "cardColorMap": {
-      "field": "color",
-      "defaultBg": "#302840",
-      "colors": {
-        "red":    "#e74c3c",
-        "yellow": "#f1c40f",
-        "green":  "#2ecc71",
-        "blue":   "#3498db",
-        "wild":   "#9b59b6"
-      }
-    },
     "matchColor": true,
     "matchNumber": true,
     "matchType": true,

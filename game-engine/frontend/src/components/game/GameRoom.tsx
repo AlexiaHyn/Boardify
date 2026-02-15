@@ -72,7 +72,7 @@ export function GameRoom({ roomCode, playerId, initialState }: GameRoomProps) {
     [],
   );
 
-  const { loading, error, drawCard, playCard, playCombo, playNope, selectTarget, insertExploding, giveCard, respondToPendingAction, executeDefaultAction, resolveNopeWindow } =
+  const { loading, error, drawCard, playCard, playCombo, playNope, selectTarget, insertExploding, giveCard, respondToPendingAction, executeDefaultAction } =
     useGameActions({ roomCode, playerId, gameState, onTriggeredEffects });
 
   const localPlayer = gameState?.players.find((p) => p.id === playerId);
@@ -84,15 +84,13 @@ export function GameRoom({ roomCode, playerId, initialState }: GameRoomProps) {
     const isMyTurn = gameState.currentTurnPlayerId === playerId;
     const isPlaying = gameState.phase === 'playing';
 
-    // Nope is a reaction card — only playable during an active nope window
-    if (card.subtype === 'nope') {
-      if (
-        gameState.phase === 'awaiting_response' &&
-        gameState.pendingAction?.type !== 'insert_exploding'
-      ) {
-        playNope(card.id);
-      }
-      return; // never fall through to playCard for Nope
+    if (
+      card.subtype === 'nope' &&
+      gameState.phase === 'awaiting_response' &&
+      gameState.pendingAction?.type !== 'insert_exploding'
+    ) {
+      playNope(card.id);
+      return;
     }
 
     if (!isMyTurn || !isPlaying) return;
@@ -282,7 +280,6 @@ export function GameRoom({ roomCode, playerId, initialState }: GameRoomProps) {
           onSelectTarget={selectTarget}
           onPlayNope={playNope}
           onRespond={respondToPendingAction}
-          onResolveNopeWindow={resolveNopeWindow}
         />
       )}
 
