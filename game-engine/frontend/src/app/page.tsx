@@ -229,7 +229,7 @@ export default function HomePage() {
 			if (res.success) {
 				setGenMessage(`"${res.game_name}" is ready to play!`);
 				// Register the new game in the frontend catalogue
-				addGame(res.game_id, res.game_name, prompt.trim());
+				addGame(res.game_id, res.game_name, res.description);
 				setPrompt("");
 				// Navigate to room creation for the new game
 				setTimeout(() => {

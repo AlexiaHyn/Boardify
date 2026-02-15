@@ -224,6 +224,7 @@ def generate_game(
             "success": True,
             "game_id": game_id,
             "game_name": game_data.get("name", game_name),
+            "description": game_data.get("description", ""),
             "message": f"Successfully generated {game_data.get('name', game_name)}!",
             "errors": [],
             "warnings": all_warnings,
