@@ -527,7 +527,239 @@ def generate_game_json(
     return message.content[0].text
 
 
-# ── Step 3: Validate generated game JSON ──────────────────────────────────────
+# ── Step 3: Generate game-specific Python plugin ─────────────────────────────
+
+# Base class that all plugins extend (inlined for the prompt)
+_PLUGIN_BASE = r'''
+from typing import Any, Dict, List, Optional, Tuple
+from app.models.game import GameState, Player, Card
+
+class GamePluginBase:
+    def __init__(self, game_id: str, game_config: Dict[str, Any]):
+        self.game_id = game_id
+        self.config = game_config
+
+    def get_custom_actions(self) -> Dict[str, callable]:
+        """Return dict mapping action type strings to handler functions.
+        Handler signature: (state: GameState, action) -> Tuple[bool, str, List[str]]"""
+        return {}
+
+    def get_custom_effects(self) -> Dict[str, callable]:
+        """Return dict mapping effect type strings to handler functions.
+        Handler signature: (state, player, card, effect, action, triggered) -> Optional[Dict]"""
+        return {}
+
+    def on_game_start(self, state: GameState) -> None: pass
+    def on_turn_start(self, state: GameState, player: Player) -> None: pass
+    def on_card_played(self, state: GameState, player: Player, card: Card) -> Optional[Dict[str, Any]]: return None
+    def on_turn_end(self, state: GameState, player: Player) -> None: pass
+    def on_game_end(self, state: GameState, winner: Optional[Player]) -> None: pass
+
+    def validate_card_play(self, state: GameState, player: Player, card: Card) -> Tuple[bool, str]:
+        return True, ""
+
+    def validate_action(self, state: GameState, action) -> Tuple[bool, str]:
+        return True, ""
+
+    # Helpers
+    def get_active_players(self, state): return [p for p in state.players if p.status not in ("eliminated", "winner")]
+    def get_player(self, state, pid): return next((p for p in state.players if p.id == pid), None)
+    def get_current_player(self, state): return self.get_player(state, state.currentTurnPlayerId)
+    def add_metadata(self, state, key, val): state.metadata[key] = val
+    def get_metadata(self, state, key, default=None): return state.metadata.get(key, default)
+'''
+
+# UNO plugin as a working example for the AI
+_UNO_PLUGIN_EXAMPLE = r'''
+"""
+UNO Game Plugin - handles color choice, UNO call, Wild Draw 4 challenge.
+"""
+import uuid
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple
+from app.models.game import GameState, Player, Card, LogEntry
+from app.services.engines.game_plugin_base import GamePluginBase
+
+def _ts(): return int(datetime.now().timestamp() * 1000)
+def _log(msg, type_="action", pid=None, cid=None):
+    return LogEntry(id=str(uuid.uuid4()), timestamp=_ts(), message=msg, type=type_, playerId=pid, cardId=cid)
+
+class UnoPlugin(GamePluginBase):
+    def get_custom_actions(self):
+        return {
+            "choose_color": self._action_choose_color,
+            "call_uno": self._action_call_uno,
+            "catch_uno": self._action_catch_uno,
+            "challenge_wild_draw4": self._action_challenge,
+        }
+
+    def _action_choose_color(self, state, action):
+        pending = state.pendingAction
+        if not pending or pending.get("type") != "choose_color":
+            return False, "No color choice pending", []
+        if action.playerId != pending["playerId"]:
+            return False, "Not your color choice", []
+        chosen = (action.metadata or {}).get("color")
+        valid_colors = self.config.get("colors", ["red", "yellow", "green", "blue"])
+        if chosen not in valid_colors:
+            return False, f"Invalid color: {chosen}", []
+        state.metadata["activeColor"] = chosen
+        from app.services.engines.universal import _discard_zone
+        discard = _discard_zone(state)
+        if discard and discard.cards:
+            top = discard.cards[0]
+            top.metadata = {**(top.metadata or {}), "color": chosen}
+        player = self.get_player(state, pending["playerId"])
+        state.log.append(_log(f"{player.name} chose {chosen}!", "action", pending["playerId"]))
+        state.pendingAction = None
+        state.phase = "playing"
+        triggered = [f"color_chosen:{chosen}"]
+        if pending.get("isWildDraw", False):
+            from app.services.engines.universal import _advance_turn
+            _advance_turn(state)
+        if player and not player.hand.cards:
+            player.status = "winner"; state.winner = player; state.phase = "ended"
+            triggered.append("win")
+        return True, "", triggered
+
+    def _action_call_uno(self, state, action):
+        player = self.get_player(state, action.playerId)
+        if not player: return False, "Player not found", []
+        if len(player.hand.cards) != 1: return False, "Can only call UNO with 1 card", []
+        called = state.metadata.setdefault("unoCalledBy", [])
+        if player.id not in called: called.append(player.id)
+        state.log.append(_log(f"{player.name} calls UNO!", "effect", player.id))
+        return True, "", ["uno_called"]
+
+    def _action_catch_uno(self, state, action):
+        target_id = action.targetPlayerId or (action.metadata or {}).get("targetPlayerId")
+        target = self.get_player(state, target_id)
+        catcher = self.get_player(state, action.playerId)
+        if not target or not catcher: return False, "Player not found", []
+        if target.id in state.metadata.get("unoCalledBy", []): return False, "Already called UNO", []
+        if len(target.hand.cards) != 1: return False, "Player doesn't have 1 card", []
+        from app.services.engines.universal import _draw_n
+        _draw_n(state, target, 2)
+        state.log.append(_log(f"{catcher.name} caught {target.name}! Draw 2.", "effect", catcher.id))
+        return True, "", [f"caught_uno:{target.id}"]
+
+    def _action_challenge(self, state, action):
+        pending = state.pendingAction
+        if not pending or pending.get("type") != "challenge_or_accept": return False, "No challenge pending", []
+        challenger = self.get_player(state, pending["playerId"])
+        challenged = self.get_player(state, pending["challengedPlayerId"])
+        draw_count = pending.get("drawCount", 4)
+        do_challenge = (action.metadata or {}).get("challenge", False)
+        state.pendingAction = None; state.phase = "playing"; state.metadata["pendingDraw"] = 0
+        from app.services.engines.universal import _draw_n, _advance_turn
+        triggered = []
+        if not do_challenge:
+            if challenger: _draw_n(state, challenger, draw_count)
+            triggered.append(f"accepted:{draw_count}"); _advance_turn(state)
+        else:
+            if state.metadata.get("lastWildDraw4WasIllegal", False):
+                if challenged: _draw_n(state, challenged, 4)
+                triggered.append("challenge_success")
+            else:
+                penalty = draw_count + 2
+                if challenger: _draw_n(state, challenger, penalty)
+                triggered.append(f"challenge_failed:{penalty}"); _advance_turn(state)
+        return True, "", triggered
+
+    def on_card_played(self, state, player, card):
+        if len(player.hand.cards) == 1:
+            state.metadata.setdefault("unoCalledBy", [])
+        if card.subtype == "wild_draw4":
+            active_color = state.metadata.get("activeColor")
+            if active_color:
+                has_match = any(c.metadata and c.metadata.get("color") == active_color for c in player.hand.cards if c.id != card.id)
+                state.metadata["lastWildDraw4WasIllegal"] = has_match
+        return None
+
+    def validate_card_play(self, state, player, card):
+        if self.config.get("matchColor") and state.metadata.get("pendingDraw", 0) > 0 and self.config.get("stackableDraw"):
+            if not any(e.type in ("draw", "wild_draw") for e in card.effects):
+                if not (card.metadata and card.metadata.get("color") == "wild"):
+                    return False, "Must play a draw card to stack or draw"
+        return True, ""
+
+def create_plugin(game_config):
+    return UnoPlugin("uno", game_config)
+'''
+
+
+@app.function(
+    image=image,
+    secrets=[modal.Secret.from_dotenv(path=str(_backend_root / ".env"))],
+    timeout=180,
+)
+def generate_game_plugin(
+    game_name: str,
+    game_id: str,
+    game_json_str: str,
+    rules_text: str,
+) -> str:
+    """
+    Use Anthropic Claude to generate a game-specific Python plugin file.
+
+    The plugin extends GamePluginBase and adds custom actions, effects,
+    validation, and lifecycle hooks specific to the game.
+    """
+    import anthropic
+
+    client = anthropic.Anthropic()
+
+    message = client.messages.create(
+        model="claude-sonnet-4-20250514",
+        max_tokens=16384,
+        system=(
+            "You are an expert Python game engine developer. You generate "
+            "game-specific plugin files for a universal card game engine.\n\n"
+            "Your output must be ONLY valid Python code -- no markdown, no code "
+            "fences, no explanation text. Output the raw Python file and nothing else.\n\n"
+            "IMPORTANT: The plugin must be syntactically valid Python 3.9+. "
+            "Use standard imports only. The plugin will be dynamically imported."
+        ),
+        messages=[
+            {
+                "role": "user",
+                "content": (
+                    f'Generate a Python plugin file for the card game "{game_name}" '
+                    f"(game_id: {game_id}).\n\n"
+                    f"--- PLUGIN BASE CLASS (inherit from this) ---\n"
+                    f"{_PLUGIN_BASE}\n--- END BASE CLASS ---\n\n"
+                    f"--- EXAMPLE PLUGIN (UNO -- follow this pattern) ---\n"
+                    f"{_UNO_PLUGIN_EXAMPLE}\n--- END EXAMPLE ---\n\n"
+                    f"--- GAME RULES (researched) ---\n{rules_text}\n--- END RULES ---\n\n"
+                    f"--- GAME JSON DEFINITION ---\n{game_json_str}\n--- END JSON ---\n\n"
+                    "Requirements:\n"
+                    "1. Create a class that inherits from GamePluginBase\n"
+                    "2. The class name should be PascalCase of the game name + 'Plugin' "
+                    f"(e.g. '{game_name.replace(' ', '')}Plugin')\n"
+                    "3. Implement get_custom_actions() for any game-specific actions "
+                    "(e.g. special calls, challenges, choices)\n"
+                    "4. Implement on_card_played() for card-specific validation\n"
+                    "5. Implement validate_card_play() for play-legality rules\n"
+                    "6. Use the same imports as the UNO example\n"
+                    "7. Include a create_plugin(game_config) factory function at the bottom\n"
+                    "8. Use helper functions from universal engine via lazy imports:\n"
+                    "   from app.services.engines.universal import _draw_n, _advance_turn, _discard_zone\n"
+                    "9. Add game log entries using LogEntry for important actions\n"
+                    "10. Handle edge cases gracefully (missing players, empty hands, etc.)\n"
+                    "11. Only implement hooks that the game actually needs -- leave others "
+                    "as the base class default\n"
+                    "12. If the game has no special mechanics beyond what universal.py "
+                    "handles, create a minimal plugin with just the factory function\n\n"
+                    "Output ONLY the Python code, nothing else."
+                ),
+            }
+        ],
+    )
+
+    return message.content[0].text
+
+
+# ── Step 4: Validate generated game JSON ──────────────────────────────────────
 
 @app.function(image=image, timeout=120)
 def validate_in_sandbox(game_json_str: str) -> dict:
