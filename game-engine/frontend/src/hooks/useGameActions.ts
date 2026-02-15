@@ -77,7 +77,7 @@ export function useGameActions({ roomCode, playerId, gameState }: UseGameActions
 
   const giveCard = useCallback(
     (cardId: string) =>
-      dispatch({ type: 'select_target', playerId, metadata: { cardId } }),
+      dispatch({ type: 'give_card', playerId, cardId }),
     [dispatch, playerId],
   );
 

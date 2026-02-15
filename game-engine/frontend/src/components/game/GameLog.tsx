@@ -23,12 +23,12 @@ export function GameLog({ entries, maxVisible = 50 }: GameLogProps) {
   }, [entries.length]);
 
   return (
-    <div className="section-panel h-48 overflow-y-auto">
-      <div className="section-panel-inner">
+    <div className="section-panel">
+      <div className="section-panel-inner pb-0">
         <p className="font-display text-[10px] font-semibold tracking-[0.1em] uppercase text-[var(--color-stone-dim)] mb-2">
           Game Log
         </p>
-        <div className="space-y-1">
+        <div className="space-y-1 max-h-40 overflow-y-auto pr-2">
           {visible.length === 0 ? (
             <p className="font-body text-xs italic text-[var(--color-stone-dim)]">No events yet&hellip;</p>
           ) : (
