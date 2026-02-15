@@ -29,6 +29,7 @@ class CardDefinition(BaseModel):
     isPlayable: bool = True
     isReaction: bool = False            # can be played out of turn (e.g. Nope)
     count: int = 1                      # how many copies to put in the deck
+    imageUrl: Optional[str] = None      # AI-generated card art URL
     metadata: Dict[str, Any] = {}
 
 
@@ -44,6 +45,7 @@ class Card(BaseModel):
     effects: List[CardEffect]
     isPlayable: bool = True
     isReaction: bool = False
+    imageUrl: Optional[str] = None      # AI-generated card art URL
     metadata: Dict[str, Any] = {}
 
 

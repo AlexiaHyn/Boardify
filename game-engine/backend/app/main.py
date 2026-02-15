@@ -2,8 +2,11 @@
 Card Game Engine – FastAPI entry point.
 Generic: load any card game by pointing at its JSON definition.
 """
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.routers import rooms, websocket
 
@@ -19,6 +22,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Serve generated card images from /static/
+_static_dir = Path(__file__).resolve().parent.parent / "static"
+_static_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/static", StaticFiles(directory=str(_static_dir)), name="static")
 
 app.include_router(rooms.router)
 app.include_router(websocket.router)

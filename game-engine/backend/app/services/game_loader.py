@@ -68,6 +68,7 @@ def _parse_card_definitions(raw: List[Dict]) -> List[CardDefinition]:
             isPlayable=d.get("isPlayable", True),
             isReaction=d.get("isReaction", False),
             count=d.get("count", 1),
+            imageUrl=d.get("imageUrl"),
             metadata=d.get("metadata", {}),
         ))
     return defs
@@ -118,6 +119,7 @@ def build_deck_from_definitions(
                 effects=defn.effects,
                 isPlayable=defn.isPlayable,
                 isReaction=defn.isReaction,
+                imageUrl=defn.imageUrl,
                 metadata=defn.metadata.copy(),
             ))
     return deck

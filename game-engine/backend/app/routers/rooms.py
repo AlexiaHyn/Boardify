@@ -4,8 +4,10 @@ HTTP API routes for room management, game actions, and AI game generation.
 from __future__ import annotations
 
 import asyncio
+import json
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import StreamingResponse
 
 from app.schemas.requests import (
     ActionRequest, ActionResponse, AvailableGamesResponse,
@@ -28,28 +30,78 @@ def list_games():
 
 # ── AI game generation ────────────────────────────────────────────────────────
 
-@router.post("/games/generate", response_model=GenerateGameResponse)
-async def generate_game(req: GenerateGameRequest):
+@router.post("/games/generate")
+async def generate_game(req: GenerateGameRequest, request: Request):
     """
     Generate a new card game definition using AI.
 
-    Pipeline: Perplexity Sonar (rules research) -> Anthropic Claude (JSON
-    generation) -> Modal Sandbox (validation) -> saved to /games directory.
+    Returns a Server-Sent Events (SSE) stream so Cloudflare / reverse proxies
+    don't time out on the long-running pipeline.  Each SSE message is either a
+    ``progress`` event (with step + message) or a final ``result`` event that
+    carries the full GenerateGameResponse JSON.
     """
     from app.services import game_generator
 
-    # Run the synchronous Modal pipeline in a thread so we don't block the
-    # event loop (Modal .remote() calls are synchronous).
-    result = await asyncio.to_thread(game_generator.generate_game, req.game_name)
+    queue: asyncio.Queue[dict | None] = asyncio.Queue()
+    loop = asyncio.get_event_loop()
 
-    return GenerateGameResponse(
-        success=result.get("success", False),
-        game_id=result.get("game_id", ""),
-        game_name=result.get("game_name", ""),
-        description=result.get("description", ""),
-        message=result.get("message", result.get("error", "")),
-        errors=result.get("errors", []),
-        warnings=result.get("warnings", []),
+    def on_progress(step: str, message: str) -> None:
+        """Thread-safe callback that pushes into the asyncio queue."""
+        loop.call_soon_threadsafe(
+            queue.put_nowait,
+            {"event": "progress", "data": {"step": step, "message": message}},
+        )
+
+    async def event_stream():
+        # Immediately yield a comment so Starlette flushes the response
+        # headers and Cloudflare sees the first byte within milliseconds.
+        yield ": stream-start\n\n"
+
+        # Kick off the synchronous Modal pipeline in a worker thread.
+        task = asyncio.ensure_future(
+            asyncio.to_thread(game_generator.generate_game, req.game_name, on_progress)
+        )
+
+        # Yield progress events as they arrive, plus a keepalive comment
+        # every 15 s so Cloudflare never considers the connection idle.
+        while not task.done():
+            # Check for client disconnect
+            if await request.is_disconnected():
+                task.cancel()
+                return
+
+            try:
+                msg = await asyncio.wait_for(queue.get(), timeout=15.0)
+                yield f"event: progress\ndata: {json.dumps(msg['data'])}\n\n"
+            except asyncio.TimeoutError:
+                # SSE keepalive comment (ignored by EventSource clients)
+                yield ": keepalive\n\n"
+
+        # Drain any remaining progress messages
+        while not queue.empty():
+            msg = queue.get_nowait()
+            yield f"event: progress\ndata: {json.dumps(msg['data'])}\n\n"
+
+        # Build and emit the final result
+        result = task.result()
+        response = GenerateGameResponse(
+            success=result.get("success", False),
+            game_id=result.get("game_id", ""),
+            game_name=result.get("game_name", ""),
+            description=result.get("description", ""),
+            message=result.get("message", result.get("error", "")),
+            errors=result.get("errors", []),
+            warnings=result.get("warnings", []),
+        )
+        yield f"event: result\ndata: {response.model_dump_json()}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",       # Nginx: don't buffer SSE
+        },
     )
 
 
