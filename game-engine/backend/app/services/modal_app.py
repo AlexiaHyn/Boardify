@@ -392,7 +392,7 @@ GAME_TEMPLATE = r'''{
 
 @app.function(
     image=image,
-    secrets=[modal.Secret.from_dotenv(path=str(_backend_root))],
+    secrets=[modal.Secret.from_dotenv(path=str(_backend_root / ".env"))],
     timeout=60,
 )
 def research_game_rules(game_name: str) -> str:
@@ -453,7 +453,7 @@ def research_game_rules(game_name: str) -> str:
 
 @app.function(
     image=image,
-    secrets=[modal.Secret.from_dotenv(path=str(_backend_root))],
+    secrets=[modal.Secret.from_dotenv(path=str(_backend_root / ".env"))],
     timeout=180,
 )
 def generate_game_json(

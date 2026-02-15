@@ -1,0 +1,481 @@
+{
+  "id": "go_fish",
+  "name": "Go Fish",
+  "description": "Collect sets of four cards by asking other players for specific ranks.",
+  "version": "1.0.0",
+  "themeColor": "#0ea5e9",
+  "backgroundEmoji": "\ud83d\udc20",
+  "rules": {
+    "minPlayers": 2,
+    "maxPlayers": 6,
+    "handSize": 7,
+    "turnStructure": {
+      "phases": [
+        {
+          "id": "ask",
+          "name": "Ask for Cards",
+          "description": "Ask another player for all cards of a specific rank.",
+          "isOptional": false
+        }
+      ],
+      "canPassTurn": false,
+      "mustPlayCard": false,
+      "drawCount": 1
+    },
+    "winCondition": {
+      "type": "most_points",
+      "description": "Player with the most books (sets of 4 matching ranks) wins when all books are collected.",
+      "metadata": {
+        "targetScore": 13
+      }
+    },
+    "specialRules": [
+      {
+        "id": "book_collection",
+        "name": "Book Collection",
+        "trigger": "on_combo",
+        "description": "When you collect all 4 cards of the same rank, immediately place them as a book."
+      },
+      {
+        "id": "must_have_rank",
+        "name": "Must Have Rank to Ask",
+        "trigger": "on_play",
+        "description": "You can only ask for ranks that you have at least one card of in your hand."
+      },
+      {
+        "id": "go_fish",
+        "name": "Go Fish",
+        "trigger": "on_draw",
+        "description": "If asked player has no cards of requested rank, you draw from the ocean."
+      }
+    ]
+  },
+  "config": {
+    "matchColor": false,
+    "matchNumber": true,
+    "matchType": false,
+    "wildAlwaysPlayable": false,
+    "stackableDraw": false,
+    "reverseEqualsSkipTwoPlayers": false,
+    "startWithDiscard": false,
+    "excludeFromStartDiscard": [],
+    "drawUntilPlayable": false,
+    "zones": [
+      {
+        "id": "ocean",
+        "name": "Ocean",
+        "type": "deck",
+        "isPublic": false
+      },
+      {
+        "id": "books",
+        "name": "Books",
+        "type": "discard",
+        "isPublic": true
+      }
+    ]
+  },
+  "cards": [
+    {
+      "id": "ace",
+      "name": "Ace",
+      "type": "number",
+      "subtype": "ace",
+      "emoji": "\ud83c\udca1",
+      "description": "Ace cards form books when you collect all 4.",
+      "effects": [
+        {
+          "type": "number",
+          "value": 1,
+          "target": "self",
+          "description": "Standard playing card.",
+          "metadata": {
+            "rank": "ace",
+            "number": 1
+          }
+        }
+      ],
+      "isPlayable": false,
+      "isReaction": false,
+      "count": 4,
+      "metadata": {
+        "rank": "ace",
+        "number": 1,
+        "points": 1,
+        "comboGroup": "ace"
+      }
+    },
+    {
+      "id": "two",
+      "name": "Two",
+      "type": "number",
+      "subtype": "two",
+      "emoji": "\ud83c\udca2",
+      "description": "Two cards form books when you collect all 4.",
+      "effects": [
+        {
+          "type": "number",
+          "value": 2,
+          "target": "self",
+          "description": "Standard playing card.",
+          "metadata": {
+            "rank": "two",
+            "number": 2
+          }
+        }
+      ],
+      "isPlayable": false,
+      "isReaction": false,
+      "count": 4,
+      "metadata": {
+        "rank": "two",
+        "number": 2,
+        "points": 1,
+        "comboGroup": "two"
+      }
+    },
+    {
+      "id": "three",
+      "name": "Three",
+      "type": "number",
+      "subtype": "three",
+      "emoji": "\ud83c\udca3",
+      "description": "Three cards form books when you collect all 4.",
+      "effects": [
+        {
+          "type": "number",
+          "value": 3,
+          "target": "self",
+          "description": "Standard playing card.",
+          "metadata": {
+            "rank": "three",
+            "number": 3
+          }
+        }
+      ],
+      "isPlayable": false,
+      "isReaction": false,
+      "count": 4,
+      "metadata": {
+        "rank": "three",
+        "number": 3,
+        "points": 1,
+        "comboGroup": "three"
+      }
+    },
+    {
+      "id": "four",
+      "name": "Four",
+      "type": "number",
+      "subtype": "four",
+      "emoji": "\ud83c\udca4",
+      "description": "Four cards form books when you collect all 4.",
+      "effects": [
+        {
+          "type": "number",
+          "value": 4,
+          "target": "self",
+          "description": "Standard playing card.",
+          "metadata": {
+            "rank": "four",
+            "number": 4
+          }
+        }
+      ],
+      "isPlayable": false,
+      "isReaction": false,
+      "count": 4,
+      "metadata": {
+        "rank": "four",
+        "number": 4,
+        "points": 1,
+        "comboGroup": "four"
+      }
+    },
+    {
+      "id": "five",
+      "name": "Five",
+      "type": "number",
+      "subtype": "five",
+      "emoji": "\ud83c\udca5",
+      "description": "Five cards form books when you collect all 4.",
+      "effects": [
+        {
+          "type": "number",
+          "value": 5,
+          "target": "self",
+          "description": "Standard playing card.",
+          "metadata": {
+            "rank": "five",
+            "number": 5
+          }
+        }
+      ],
+      "isPlayable": false,
+      "isReaction": false,
+      "count": 4,
+      "metadata": {
+        "rank": "five",
+        "number": 5,
+        "points": 1,
+        "comboGroup": "five"
+      }
+    },
+    {
+      "id": "six",
+      "name": "Six",
+      "type": "number",
+      "subtype": "six",
+      "emoji": "\ud83c\udca6",
+      "description": "Six cards form books when you collect all 4.",
+      "effects": [
+        {
+          "type": "number",
+          "value": 6,
+          "target": "self",
+          "description": "Standard playing card.",
+          "metadata": {
+            "rank": "six",
+            "number": 6
+          }
+        }
+      ],
+      "isPlayable": false,
+      "isReaction": false,
+      "count": 4,
+      "metadata": {
+        "rank": "six",
+        "number": 6,
+        "points": 1,
+        "comboGroup": "six"
+      }
+    },
+    {
+      "id": "seven",
+      "name": "Seven",
+      "type": "number",
+      "subtype": "seven",
+      "emoji": "\ud83c\udca7",
+      "description": "Seven cards form books when you collect all 4.",
+      "effects": [
+        {
+          "type": "number",
+          "value": 7,
+          "target": "self",
+          "description": "Standard playing card.",
+          "metadata": {
+            "rank": "seven",
+            "number": 7
+          }
+        }
+      ],
+      "isPlayable": false,
+      "isReaction": false,
+      "count": 4,
+      "metadata": {
+        "rank": "seven",
+        "number": 7,
+        "points": 1,
+        "comboGroup": "seven"
+      }
+    },
+    {
+      "id": "eight",
+      "name": "Eight",
+      "type": "number",
+      "subtype": "eight",
+      "emoji": "\ud83c\udca8",
+      "description": "Eight cards form books when you collect all 4.",
+      "effects": [
+        {
+          "type": "number",
+          "value": 8,
+          "target": "self",
+          "description": "Standard playing card.",
+          "metadata": {
+            "rank": "eight",
+            "number": 8
+          }
+        }
+      ],
+      "isPlayable": false,
+      "isReaction": false,
+      "count": 4,
+      "metadata": {
+        "rank": "eight",
+        "number": 8,
+        "points": 1,
+        "comboGroup": "eight"
+      }
+    },
+    {
+      "id": "nine",
+      "name": "Nine",
+      "type": "number",
+      "subtype": "nine",
+      "emoji": "\ud83c\udca9",
+      "description": "Nine cards form books when you collect all 4.",
+      "effects": [
+        {
+          "type": "number",
+          "value": 9,
+          "target": "self",
+          "description": "Standard playing card.",
+          "metadata": {
+            "rank": "nine",
+            "number": 9
+          }
+        }
+      ],
+      "isPlayable": false,
+      "isReaction": false,
+      "count": 4,
+      "metadata": {
+        "rank": "nine",
+        "number": 9,
+        "points": 1,
+        "comboGroup": "nine"
+      }
+    },
+    {
+      "id": "ten",
+      "name": "Ten",
+      "type": "number",
+      "subtype": "ten",
+      "emoji": "\ud83c\udcaa",
+      "description": "Ten cards form books when you collect all 4.",
+      "effects": [
+        {
+          "type": "number",
+          "value": 10,
+          "target": "self",
+          "description": "Standard playing card.",
+          "metadata": {
+            "rank": "ten",
+            "number": 10
+          }
+        }
+      ],
+      "isPlayable": false,
+      "isReaction": false,
+      "count": 4,
+      "metadata": {
+        "rank": "ten",
+        "number": 10,
+        "points": 1,
+        "comboGroup": "ten"
+      }
+    },
+    {
+      "id": "jack",
+      "name": "Jack",
+      "type": "number",
+      "subtype": "jack",
+      "emoji": "\ud83c\udcab",
+      "description": "Jack cards form books when you collect all 4.",
+      "effects": [
+        {
+          "type": "number",
+          "value": 11,
+          "target": "self",
+          "description": "Standard playing card.",
+          "metadata": {
+            "rank": "jack",
+            "number": 11
+          }
+        }
+      ],
+      "isPlayable": false,
+      "isReaction": false,
+      "count": 4,
+      "metadata": {
+        "rank": "jack",
+        "number": 11,
+        "points": 1,
+        "comboGroup": "jack"
+      }
+    },
+    {
+      "id": "queen",
+      "name": "Queen",
+      "type": "number",
+      "subtype": "queen",
+      "emoji": "\ud83c\udcad",
+      "description": "Queen cards form books when you collect all 4.",
+      "effects": [
+        {
+          "type": "number",
+          "value": 12,
+          "target": "self",
+          "description": "Standard playing card.",
+          "metadata": {
+            "rank": "queen",
+            "number": 12
+          }
+        }
+      ],
+      "isPlayable": false,
+      "isReaction": false,
+      "count": 4,
+      "metadata": {
+        "rank": "queen",
+        "number": 12,
+        "points": 1,
+        "comboGroup": "queen"
+      }
+    },
+    {
+      "id": "king",
+      "name": "King",
+      "type": "number",
+      "subtype": "king",
+      "emoji": "\ud83c\udcae",
+      "description": "King cards form books when you collect all 4.",
+      "effects": [
+        {
+          "type": "number",
+          "value": 13,
+          "target": "self",
+          "description": "Standard playing card.",
+          "metadata": {
+            "rank": "king",
+            "number": 13
+          }
+        }
+      ],
+      "isPlayable": false,
+      "isReaction": false,
+      "count": 4,
+      "metadata": {
+        "rank": "king",
+        "number": 13,
+        "points": 1,
+        "comboGroup": "king"
+      }
+    }
+  ],
+  "ui": {
+    "tableBackground": "#1e40af",
+    "cardBack": "\ud83c\udfb4",
+    "deckLabel": "Ocean",
+    "discardLabel": "Books",
+    "turnPrompt": "Ask another player for cards of a specific rank!",
+    "waitPrompt": "Waiting for {playerName} to ask for cards...",
+    "winMessage": "\ud83c\udfc6 {playerName} wins with the most books!",
+    "eliminatedMessage": "\ud83d\udc1f {playerName} is out of cards!",
+    "actionLabels": {
+      "draw_card": "Go Fish! \ud83c\udfa3",
+      "play_card": "Ask",
+      "select_target": "Choose Player",
+      "choose_rank": "Choose Rank"
+    },
+    "specialPrompts": {
+      "ask_for_cards": "Choose a player to ask for cards",
+      "choose_rank": "Choose which rank to ask for",
+      "go_fish": "Go Fish! Draw a card from the ocean",
+      "book_formed": "You formed a book! Place it on the table",
+      "give_cards": "Give all your {rank} cards to {playerName}",
+      "no_cards_of_rank": "{playerName} has no {rank} cards - Go Fish!"
+    }
+  }
+}
