@@ -73,6 +73,28 @@ const BUILT_IN_GAMES: GameConfig[] = [
     playerCount: '2–10 players',
     gameType: 'uno',
   },
+  {
+    id: 3,
+    name: 'Texas Hold\'em Poker',
+    description:
+      'Bluff, bet, and go all-in. Classic poker with hole cards, community cards, and betting rounds.',
+    emoji: '🃏',
+    accentColor: '#047857',
+    accentColorRgb: '4, 120, 87',
+    playerCount: '2–10 players',
+    gameType: 'poker',
+  },
+  {
+    id: 4,
+    name: 'Flip Seven',
+    description:
+      'Push your luck! Draw cards trying to get as close to a score of 7 as possible without going over.',
+    emoji: '🎰',
+    accentColor: '#7C3AED',
+    accentColorRgb: '124, 58, 237',
+    playerCount: '2–6 players',
+    gameType: 'flip_seven',
+  },
 ];
 
 // ── Mutable game list (built-ins + dynamic) ─────────────────────────────────

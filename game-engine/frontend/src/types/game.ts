@@ -113,6 +113,16 @@ export interface PendingAction {
   [key: string]: unknown;
 }
 
+export interface ActionInputConfig {
+  // For 'number' inputType:
+  min?: number;
+  max?: number;
+  step?: number;
+  label?: string;
+  // For 'choice' inputType:
+  choices?: Choice[];
+}
+
 export interface DefaultAction {
   id: string;
   label: string;
@@ -122,6 +132,9 @@ export interface DefaultAction {
   color?: string;
   targetPlayerId?: string;
   targetPlayerName?: string;
+  // Declarative input types for game-specific actions
+  inputType?: 'button' | 'number' | 'choice';
+  inputConfig?: ActionInputConfig;
 }
 
 export interface GameState {

@@ -235,6 +235,36 @@ export function GameRoom({ roomCode, playerId, initialState }: GameRoomProps) {
 
         <hr className="gold-divider" />
 
+        {/* Local player stats (chips, score, etc.) from JSON-defined display fields */}
+        {localPlayer && (() => {
+          const uiCfg = (gameState.metadata?.uiConfig as Record<string, unknown>) ?? {};
+          const playerFields = (uiCfg.playerDisplayFields as Array<{ key: string; label: string; icon?: string; format?: string; defaultValue?: string | number }>) ?? [];
+          const pData = ((gameState.metadata?.playerData as Record<string, Record<string, unknown>>) ?? {})[playerId];
+          if (playerFields.length > 0 && pData) {
+            return (
+              <div className="flex flex-wrap gap-2 justify-center">
+                {playerFields.map((field) => {
+                  const raw = pData[field.key];
+                  const value = raw ?? field.defaultValue ?? (field.format === 'number' ? 0 : '—');
+                  return (
+                    <span
+                      key={field.key}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)]"
+                    >
+                      {field.icon && <span className="text-sm">{field.icon}</span>}
+                      <span className="font-body text-xs text-[var(--color-stone)]">{field.label}</span>
+                      <span className="font-body text-sm font-bold text-[var(--color-gold)]">
+                        {typeof value === 'number' ? value.toLocaleString() : String(value)}
+                      </span>
+                    </span>
+                  );
+                })}
+              </div>
+            );
+          }
+          return null;
+        })()}
+
         {localPlayer && (
           <PlayerHand
             player={localPlayer}

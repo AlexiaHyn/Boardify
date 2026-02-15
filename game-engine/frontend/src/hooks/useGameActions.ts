@@ -95,12 +95,13 @@ export function useGameActions({ roomCode, playerId, gameState }: UseGameActions
   );
 
   const executeDefaultAction = useCallback(
-    (actionType: string, targetPlayerId?: string) => {
-      // Execute a default game action (like call_uno, catch_uno, etc.)
+    (actionType: string, targetPlayerId?: string, metadata?: Record<string, unknown>) => {
+      // Execute a default game action (like call_uno, catch_uno, bet, fold, hit, stay, etc.)
       dispatch({
         type: actionType,
         playerId,
         targetPlayerId,
+        metadata,
       });
     },
     [dispatch, playerId],
