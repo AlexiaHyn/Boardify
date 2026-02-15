@@ -107,37 +107,6 @@ def _card_color(card: Card) -> Optional[str]:
     return None
 
 
-def _apply_card_color_map(cards: List[Card], cfg: Dict[str, Any]) -> None:
-    """Resolve ``cardColorMap`` from game config into each card's metadata.
-
-    If the config contains a ``cardColorMap`` entry like::
-
-        {
-          "field": "color",
-          "defaultBg": "#302840",
-          "colors": { "red": "#e74c3c", ... }
-        }
-
-    then for every card whose ``metadata[field]`` matches a key in ``colors``,
-    ``borderColor`` and ``cardBg`` are injected into ``card.metadata`` so the
-    frontend can apply them generically without game-specific knowledge.
-    """
-    color_map = cfg.get("cardColorMap")
-    if not color_map:
-        return
-    field = color_map.get("field", "color")
-    default_bg = color_map.get("defaultBg")
-    mapping = color_map.get("colors", {})
-    for card in cards:
-        if not card.metadata:
-            continue
-        value = card.metadata.get(field)
-        if value and value in mapping:
-            card.metadata["borderColor"] = mapping[value]
-            if default_bg:
-                card.metadata.setdefault("cardBg", default_bg)
-
-
 def _card_number(card: Card) -> Optional[int]:
     if card.metadata:
         v = card.metadata.get("number")
@@ -908,10 +877,6 @@ def setup_game(state: GameState):
     # Cards with "notInStartDeck" are excluded from initial build
     exclude_ids = [d.id for d in card_defs if d.metadata.get("notInStartDeck")]
     deck = build_deck_from_definitions(card_defs, exclude_ids=exclude_ids)
-
-    # Resolve cardColorMap → inject borderColor / cardBg into each card's metadata
-    _apply_card_color_map(deck, cfg)
-
     random.shuffle(deck)
 
     # Deal hands
@@ -959,10 +924,6 @@ def setup_game(state: GameState):
                     metadata=defn.metadata.copy(),
                 )
                 deck.append(c)
-
-    # Apply color map to injected cards as well
-    _apply_card_color_map(deck, cfg)
-
     random.shuffle(deck)
 
     # Build zones (from JSON config, default to draw+discard)
