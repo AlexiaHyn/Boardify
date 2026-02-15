@@ -38,7 +38,7 @@ export function PlayerHand({
     if (card.type === 'hidden') return false;
     if (card.subtype === 'defuse') return false;
     if (card.subtype === 'exploding') return false;
-    if (card.isReaction && card.subtype === 'nope') return canNope || (isMyTurn && isPlaying);
+    if (card.isReaction && card.subtype === 'nope') return canNope;
     return isMyTurn && isPlaying;
   };
 

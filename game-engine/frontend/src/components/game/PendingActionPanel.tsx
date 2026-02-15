@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { Card, GameState, Player, Choice } from "@/types/game";
 import { GameCard } from "./GameCard";
 
@@ -12,6 +12,7 @@ interface PendingActionPanelProps {
 	onSelectTarget: (targetPlayerId: string) => void;
 	onPlayNope?: (cardId: string) => void;
 	onRespond?: (actionType: string, value: string) => void;
+	onResolveNopeWindow?: () => void;
 }
 
 export function PendingActionPanel({
@@ -22,6 +23,7 @@ export function PendingActionPanel({
 	onSelectTarget,
 	onPlayNope,
 	onRespond,
+	onResolveNopeWindow,
 }: PendingActionPanelProps) {
 	const pending = gameState.pendingAction;
 	if (!pending) return null;
@@ -73,9 +75,39 @@ export function PendingActionPanel({
 		}
 	}
 
+	// Nope window: shown after any action card is played in Exploding Kittens.
+	// All players can see it; players with Nope cards can counter.
+	if (pending.type === "nope_window" && onResolveNopeWindow) {
+		const localPlayer = gameState.players.find(
+			(p) => p.id === localPlayerId,
+		);
+		const nopeCard = localPlayer?.hand.cards.find(
+			(c) => c.subtype === "nope",
+		);
+		const cardPlayer = gameState.players.find(
+			(p) => p.id === pending.playerId,
+		);
+		const cardName = (pending.cardName as string) || "action";
+		const nopeCount = (pending.nopeCount as number) || 0;
+
+		return (
+			<NopeWindow
+				nopeCard={nopeCard ?? null}
+				onNope={onPlayNope ?? (() => {})}
+				onResolve={onResolveNopeWindow}
+				cardName={cardName}
+				playerName={cardPlayer?.name ?? "Someone"}
+				nopeCount={nopeCount}
+				isCardPlayer={pending.playerId === localPlayerId}
+			/>
+		);
+	}
+
+	// Legacy Nope support for other pending types (non-nope_window)
 	if (
 		pending.type !== "insert_exploding" &&
 		pending.type !== "favor" &&
+		pending.type !== "nope_window" &&
 		onPlayNope
 	) {
 		const localPlayer = gameState.players.find(
@@ -86,7 +118,7 @@ export function PendingActionPanel({
 		);
 		if (nopeCard) {
 			return (
-				<NopeWindow
+				<LegacyNopeWindow
 					nopeCard={nopeCard}
 					onNope={onPlayNope}
 					pendingType={pending.type}
@@ -331,9 +363,146 @@ function GiveCardModal({
 	);
 }
 
-// ── Nope window ───────────────────────────────────────────────────────────────
+// ── Nope Window (with countdown for Exploding Kittens) ────────────────────────
+
+const NOPE_WINDOW_SECONDS = 3;
 
 function NopeWindow({
+	nopeCard,
+	onNope,
+	onResolve,
+	cardName,
+	playerName,
+	nopeCount,
+	isCardPlayer,
+}: {
+	nopeCard: Card | null;
+	onNope: (cardId: string) => void;
+	onResolve: () => void;
+	cardName: string;
+	playerName: string;
+	nopeCount: number;
+	isCardPlayer: boolean;
+}) {
+	const [countdown, setCountdown] = useState(NOPE_WINDOW_SECONDS);
+	const resolvedRef = useRef(false);
+
+	// Reset countdown when nopeCount changes (a new Nope was played)
+	useEffect(() => {
+		setCountdown(NOPE_WINDOW_SECONDS);
+		resolvedRef.current = false;
+	}, [nopeCount]);
+
+	useEffect(() => {
+		const timer = setInterval(() => {
+			setCountdown((prev) => {
+				if (prev <= 1) {
+					clearInterval(timer);
+					// Auto-resolve when countdown reaches 0
+					if (!resolvedRef.current) {
+						resolvedRef.current = true;
+						setTimeout(() => onResolve(), 0);
+					}
+					return 0;
+				}
+				return prev - 1;
+			});
+		}, 1000);
+		return () => clearInterval(timer);
+	}, [onResolve, nopeCount]);
+
+	const isNoped = nopeCount % 2 === 1;
+
+	return (
+		<div className="fixed bottom-4 right-4 z-50 max-w-sm w-full">
+			<div
+				className="section-panel"
+				style={{
+					borderColor: isNoped
+						? "var(--color-crimson)"
+						: "var(--color-gold)",
+				}}
+			>
+				<div className="section-panel-inner">
+					{/* Header */}
+					<div className="flex items-center justify-between mb-2">
+						<p className="font-display font-semibold text-sm tracking-wide text-[var(--color-cream)]">
+							{isNoped ? "NOPED!" : "Card Played!"}
+						</p>
+						<span
+							className="font-display text-xs font-bold px-2 py-0.5 rounded-full"
+							style={{
+								backgroundColor: countdown <= 2
+									? "var(--color-crimson)"
+									: "var(--color-surface-raised)",
+								color: "var(--color-cream)",
+							}}
+						>
+							{countdown}s
+						</span>
+					</div>
+
+					{/* Description */}
+					<p className="font-body text-xs text-[var(--color-stone)] mb-3">
+						<span className="text-[var(--color-gold)] font-semibold">
+							{playerName}
+						</span>{" "}
+						played{" "}
+						<span className="text-[var(--color-crimson-bright)] font-semibold">
+							{cardName}
+						</span>
+						{nopeCount > 0 && (
+							<span className="text-[var(--color-stone-dim)]">
+								{" "}
+								&middot; {nopeCount} Nope{nopeCount > 1 ? "s" : ""}{" "}
+								played
+							</span>
+						)}
+					</p>
+
+					{/* Nope button */}
+					{nopeCard && (
+						<button
+							onClick={() => {
+								resolvedRef.current = true;
+								onNope(nopeCard.id);
+							}}
+							className="btn-press w-full bg-[var(--color-crimson)] hover:bg-[var(--color-crimson-bright)] text-[var(--color-cream)] font-display font-medium tracking-wider text-xs py-2.5 rounded-lg transition-colors mb-2"
+						>
+							🚫 NOPE!
+						</button>
+					)}
+
+					{/* Continue / Let it happen button */}
+					<button
+						onClick={() => {
+							if (!resolvedRef.current) {
+								resolvedRef.current = true;
+								onResolve();
+							}
+						}}
+						disabled={countdown > 0}
+						className={`btn-press w-full font-display font-medium tracking-wider text-xs py-2 rounded-lg transition-colors ${
+							countdown > 0
+								? "bg-[var(--color-surface-raised)] text-[var(--color-stone-dim)] cursor-not-allowed opacity-60"
+								: "bg-[var(--color-verdant)] hover:bg-[var(--color-verdant-bright)] text-[var(--color-cream)]"
+						}`}
+					>
+						{countdown > 0
+							? `Wait ${countdown}s...`
+							: isNoped
+								? "Accept Cancellation"
+								: "Let it Happen"}
+					</button>
+				</div>
+			</div>
+		</div>
+	);
+}
+
+// ── Legacy Nope window (non-nope_window pending types) ────────────────────────
+
+function LegacyNopeWindow({
 	nopeCard,
 	onNope,
 	pendingType,

@@ -54,135 +54,97 @@ export function GameCard({
 	onClick,
 	onHover,
 }: CardProps) {
-	const [hovered, setHovered] = useState(false);
-	const [imgError, setImgError] = useState(false);
+  const [hovered, setHovered] = useState(false);
 
-	const isHidden = faceDown || card.type === "hidden";
-	const  imgSrc = !isHidden ? cardImageUrl(card) : null;
-	const hasImage = !!imgSrc && !imgError;
+  const meta = card.metadata as Record<string, unknown> | undefined;
+  const borderColor = !faceDown ? (meta?.borderColor as string | undefined) : undefined;
+  const cardBg = !faceDown ? (meta?.cardBg as string | undefined) : undefined;
+  const hasCustomColor = !!borderColor;
+  const colors = faceDown
+    ? TYPE_COLORS.hidden
+    : !hasCustomColor
+      ? (TYPE_COLORS[card.type] ?? TYPE_COLORS.action)
+      : '';
+  const isHidden = faceDown || card.type === 'hidden';
 
-	// Use gradient background when no image; just border when image present
-	const colors = hasImage
-		? (TYPE_BORDERS[faceDown ? "hidden" : card.type] ?? TYPE_BORDERS.action)
-		: `bg-gradient-to-br ${TYPE_COLORS[faceDown ? "hidden" : card.type] ?? TYPE_COLORS.action}`;
+  const handleClick = () => {
+    if (!disabled && onClick) onClick(card);
+  };
 
-	const handleClick = () => {
-		if (!disabled && onClick) onClick(card);
-	};
+  const handleMouseEnter = () => {
+    setHovered(true);
+    if (!isHidden && onHover) onHover(card);
+  };
 
-	const handleMouseEnter = () => {
-		setHovered(true);
-		if (!isHidden && onHover) onHover(card);
-	};
+  const handleMouseLeave = () => {
+    setHovered(false);
+    if (onHover) onHover(null);
+  };
 
-	const handleMouseLeave = () => {
-		setHovered(false);
-		if (onHover) onHover(null);
-	};
+  const cursor = disabled ? 'cursor-not-allowed' : selectable || onClick ? 'cursor-pointer' : 'cursor-default';
+  const scale = hovered && !disabled && onClick ? 'scale-110 -translate-y-3' : '';
+  const ring = selected ? 'ring-4 ring-[var(--color-gold)] ring-offset-2 ring-offset-transparent' : '';
+  const opacity = disabled ? 'opacity-40' : '';
 
-	const cursor = disabled
-		? "cursor-not-allowed"
-		: selectable || onClick
-			? "cursor-pointer"
-			: "cursor-default";
-	const scale =
-		hovered && !disabled && onClick ? "scale-110 -translate-y-3" : "";
-	const ring = selected
-		? "ring-4 ring-[var(--color-gold)] ring-offset-2 ring-offset-transparent"
-		: "";
-	const opacity = disabled ? "opacity-40" : "";
+  const w = small ? 'w-14' : 'w-24';
+  const h = small ? 'h-20' : 'h-36';
+  const textSm = small ? 'text-xs' : 'text-sm';
+  const emojiSm = small ? 'text-2xl' : 'text-4xl';
 
-	const w = small ? "w-14" : "w-24";
-	const h = small ? "h-20" : "h-36";
-	const textSm = small ? "text-xs" : "text-sm";
-	const emojiSm = small ? "text-2xl" : "text-4xl";
-
-	return (
-		<div
-			className={`
-        relative ${w} ${h} rounded-xl border-2 overflow-hidden
-        ${colors}
+  return (
+    <div
+      className={`
+        relative ${w} ${h} rounded-xl ${hasCustomColor ? 'border-[3px]' : 'border-2 bg-gradient-to-br'} ${colors}
         ${ring} ${opacity} ${cursor} ${scale}
         transition-all duration-200 ease-out select-none
-        shadow-lg flex flex-col items-center justify-between
+        ${hasCustomColor ? 'shadow-md' : 'shadow-lg'} flex flex-col items-center justify-between p-2
       `}
-			onClick={handleClick}
-			onMouseEnter={handleMouseEnter}
-			onMouseLeave={handleMouseLeave}
-		>
-			{/* AI-generated card art (background layer) */}
-			{hasImage && (
-				<>
-					{/* eslint-disable-next-line @next/next/no-img-element */}
-					<img
-						src={imgSrc}
-						alt=""
-						className="absolute inset-0 w-full h-full object-cover"
-						onError={() => setImgError(true)}
-						draggable={false}
-					/>
-					{/* Dark gradient overlays for text readability */}
-					<div className="absolute inset-0 bg-gradient-to-b from-black/70 via-transparent to-black/70 pointer-events-none" />
-				</>
-			)}
+      style={hasCustomColor ? { borderColor, backgroundColor: cardBg } : undefined}
+      onClick={handleClick}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      {isHidden ? (
+        <div className="flex flex-col items-center justify-center h-full w-full">
+          <span className={emojiSm}>&#127138;</span>
+          {!small && <span className="font-body text-[var(--color-stone-dim)] text-xs mt-1">Hidden</span>}
+        </div>
+      ) : (
+        <>
+          {/* Card type badge */}
+          <div className="w-full flex justify-between items-start">
+            <span className={`${textSm} font-bold text-[var(--color-cream)] drop-shadow leading-tight font-body`}>
+              {small ? '' : card.name}
+            </span>
+          </div>
 
-			{isHidden ? (
-				<div className="relative z-10 flex flex-col items-center justify-center h-full w-full p-2">
-					<span className={emojiSm}>&#127138;</span>
-					{!small && (
-						<span className="font-body text-[var(--color-stone-dim)] text-xs mt-1">
-							Hidden
-						</span>
-					)}
-				</div>
-			) : (
-				<div className="relative z-10 flex flex-col items-center justify-between h-full w-full p-2">
-					{/* Card name (top) */}
-					<div className="w-full flex justify-between items-start">
-						<span
-							className={`${textSm} font-bold text-[var(--color-cream)] leading-tight font-body ${hasImage ? "drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]" : "drop-shadow"}`}
-						>
-							{small ? "" : card.name}
-						</span>
-					</div>
+          {/* Emoji */}
+          <div className="flex flex-col items-center justify-center flex-1">
+            <span className={`${emojiSm} drop-shadow-lg`}>{card.emoji ?? '&#127139;'}</span>
+            {small && (
+              <span className="font-body text-[var(--color-cream)] text-xs mt-1 font-semibold text-center leading-tight px-1">
+                {card.name}
+              </span>
+            )}
+          </div>
 
-					{/* Emoji (center) — shown when no image, or always on small cards */}
-					<div className="flex flex-col items-center justify-center flex-1">
-						{(!hasImage || small) && (
-							<span className={`${emojiSm} drop-shadow-lg`}>
-								{card.emoji ?? "&#127139;"}
-							</span>
-						)}
-						{small && (
-							<span
-								className={`font-body text-[var(--color-cream)] text-xs mt-1 font-semibold text-center leading-tight px-1 ${hasImage ? "drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]" : ""}`}
-							>
-								{card.name}
-							</span>
-						)}
-					</div>
+          {/* Type label */}
+          {!small && (
+            <div className="w-full">
+              <span className="font-body text-[var(--color-cream-dim)] text-xs capitalize">{card.type}</span>
+            </div>
+          )}
 
-					{/* Type label (bottom) */}
-					{!small && (
-						<div className="w-full">
-							<span
-								className={`font-body text-xs capitalize ${hasImage ? "text-[var(--color-cream)] drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]" : "text-[var(--color-cream-dim)]"}`}
-							>
-								{card.type}
-							</span>
-						</div>
-					)}
-
-					{/* Reaction badge */}
-					{card.isReaction && !small && (
-						<div className="absolute -top-1 -right-1 bg-[var(--color-crimson)] text-[var(--color-cream)] text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold shadow">
-							R
-						</div>
-					)}
-				</div>
-			)}
-		</div>
-	);
+          {/* Reaction badge */}
+          {card.isReaction && !small && (
+            <div className="absolute -top-1 -right-1 bg-[var(--color-crimson)] text-[var(--color-cream)] text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold shadow">
+              R
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
 }
 
 // Tooltip card preview
