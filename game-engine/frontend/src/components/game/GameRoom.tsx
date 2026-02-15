@@ -226,12 +226,22 @@ export function GameRoom({ roomCode, playerId, initialState }: GameRoomProps) {
 
       {/* Main game area */}
       <main className="flex-1 flex flex-col gap-4 p-4 max-w-6xl mx-auto w-full">
-        <GameTable
-          gameState={gameState}
-          localPlayerId={playerId}
-          onDrawCard={drawCard}
-          loading={loading}
-        />
+        {/* Game table with wood frame and felt surface */}
+        <div 
+          className="rounded-3xl p-8 shadow-2xl relative"
+          style={{
+            background: 'linear-gradient(145deg, #5a3e2e 0%, #3a2820 50%, #2a1810 100%)',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.1), inset 0 -1px 0 rgba(0,0,0,0.5)',
+            border: '2px solid rgba(90, 62, 46, 0.8)'
+          }}
+        >
+          <GameTable
+            gameState={gameState}
+            localPlayerId={playerId}
+            onDrawCard={drawCard}
+            loading={loading}
+          />
+        </div>
 
         <hr className="gold-divider" />
 

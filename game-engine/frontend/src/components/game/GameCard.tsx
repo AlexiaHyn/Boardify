@@ -9,6 +9,8 @@ interface CardProps {
   selectable?: boolean;
   disabled?: boolean;
   small?: boolean;
+  large?: boolean;
+  extraLarge?: boolean;
   faceDown?: boolean;
   onClick?: (card: Card) => void;
   onHover?: (card: Card | null) => void;
@@ -23,20 +25,54 @@ const TYPE_COLORS: Record<string, string> = {
   hidden:   'from-[var(--color-surface-raised)] to-[var(--color-bg-deep)] border-[var(--color-border)]',
 };
 
+// UNO-style color mapping for cards with color in their name
+const UNO_COLOR_MAPPING: Record<string, string> = {
+  red: 'from-[#E8232A] to-[#B51E24] border-[#FF4444]',
+  blue: 'from-[#0073E6] to-[#005AB3] border-[#3399FF]',
+  green: 'from-[#00A651] to-[#008040] border-[#33CC77]',
+  yellow: 'from-[#FFC627] to-[#E6A820] border-[#FFD65C]',
+  wild: 'from-[#9C27B0] via-[#E91E63] to-[#FF5722] border-[#FF9800]',
+};
+
+// Extract color from card name (e.g., "Red 1" -> "red", "Blue Skip" -> "blue")
+function extractColorFromName(name: string): string | null {
+  const lowerName = name.toLowerCase();
+  for (const color of ['red', 'blue', 'green', 'yellow', 'wild']) {
+    if (lowerName.includes(color)) {
+      return color;
+    }
+  }
+  return null;
+}
+
 export function GameCard({
   card,
   selected = false,
   selectable = false,
   disabled = false,
   small = false,
+  large = false,
+  extraLarge = false,
   faceDown = false,
   onClick,
   onHover,
 }: CardProps) {
   const [hovered, setHovered] = useState(false);
 
-  const colors = TYPE_COLORS[faceDown ? 'hidden' : card.type] ?? TYPE_COLORS.action;
+  // Check if card has a color in its metadata or name (for UNO-style games)
+  const metadataColor = card.metadata?.color as string | undefined;
+  const nameColor = extractColorFromName(card.name);
+  const cardColor = metadataColor || nameColor;
+  
+  const colors = cardColor 
+    ? UNO_COLOR_MAPPING[cardColor]
+    : TYPE_COLORS[faceDown ? 'hidden' : card.type] ?? TYPE_COLORS.action;
+  
   const isHidden = faceDown || card.type === 'hidden';
+  
+  // Check if this is a number card (for UNO)
+  const cardNumber = card.metadata?.number as number | undefined;
+  const isNumberCard = cardNumber !== undefined && card.type === 'number';
 
   const handleClick = () => {
     if (!disabled && onClick) onClick(card);
@@ -57,10 +93,14 @@ export function GameCard({
   const ring = selected ? 'ring-4 ring-[var(--color-gold)] ring-offset-2 ring-offset-transparent' : '';
   const opacity = disabled ? 'opacity-40' : '';
 
-  const w = small ? 'w-14' : 'w-24';
-  const h = small ? 'h-20' : 'h-36';
-  const textSm = small ? 'text-xs' : 'text-sm';
-  const emojiSm = small ? 'text-2xl' : 'text-4xl';
+  const w = extraLarge ? 'w-48' : large ? 'w-36' : small ? 'w-14' : 'w-24';
+  const h = extraLarge ? 'h-72' : large ? 'h-52' : small ? 'h-20' : 'h-36';
+  const textSm = extraLarge ? 'text-2xl' : large ? 'text-lg' : small ? 'text-xs' : 'text-sm';
+  const emojiSm = extraLarge ? 'text-8xl' : large ? 'text-6xl' : small ? 'text-2xl' : 'text-4xl';
+  const numberSize = extraLarge ? 'text-9xl' : large ? 'text-7xl' : small ? 'text-3xl' : 'text-5xl';
+
+  const padding = extraLarge ? 'p-6' : large ? 'p-4' : small ? 'p-1' : 'p-2';
+  const badgeSize = extraLarge ? 'w-9 h-9 text-base' : large ? 'w-7 h-7 text-sm' : 'w-5 h-5 text-xs';
 
   return (
     <div
@@ -68,7 +108,7 @@ export function GameCard({
         relative ${w} ${h} rounded-xl border-2 bg-gradient-to-br ${colors}
         ${ring} ${opacity} ${cursor} ${scale}
         transition-all duration-200 ease-out select-none
-        shadow-lg flex flex-col items-center justify-between p-2
+        shadow-lg flex flex-col items-center justify-between ${padding}
       `}
       onClick={handleClick}
       onMouseEnter={handleMouseEnter}
@@ -77,22 +117,33 @@ export function GameCard({
       {isHidden ? (
         <div className="flex flex-col items-center justify-center h-full w-full">
           <span className={emojiSm}>&#127138;</span>
-          {!small && <span className="font-body text-[var(--color-stone-dim)] text-xs mt-1">Hidden</span>}
+          {!small && <span className={`font-body text-[var(--color-stone-dim)] ${extraLarge ? 'text-base' : large ? 'text-sm' : 'text-xs'} mt-1`}>Hidden</span>}
         </div>
       ) : (
         <>
-          {/* Card type badge */}
+          {/* Card name/type in corner */}
           <div className="w-full flex justify-between items-start">
-            <span className={`${textSm} font-bold text-[var(--color-cream)] drop-shadow leading-tight font-body`}>
+            <span className={`${textSm} font-bold text-white drop-shadow-lg leading-tight font-body`}>
               {small ? '' : card.name}
             </span>
           </div>
 
-          {/* Emoji */}
+          {/* Center content: Number (serif font) or Emoji */}
           <div className="flex flex-col items-center justify-center flex-1">
-            <span className={`${emojiSm} drop-shadow-lg`}>{card.emoji ?? '&#127139;'}</span>
+            {isNumberCard ? (
+              // Use large serif font for numbers instead of emoji
+              <span 
+                className={`${numberSize} font-serif font-bold text-white drop-shadow-2xl`}
+                style={{ lineHeight: '1', textShadow: '0 4px 12px rgba(0,0,0,0.4)' }}
+              >
+                {cardNumber}
+              </span>
+            ) : (
+              // Use emoji for action/special cards
+              <span className={`${emojiSm} drop-shadow-xl`}>{card.emoji ?? '&#127139;'}</span>
+            )}
             {small && (
-              <span className="font-body text-[var(--color-cream)] text-xs mt-1 font-semibold text-center leading-tight px-1">
+              <span className="font-body text-white text-xs mt-1 font-semibold text-center leading-tight px-1 drop-shadow">
                 {card.name}
               </span>
             )}
@@ -101,13 +152,15 @@ export function GameCard({
           {/* Type label */}
           {!small && (
             <div className="w-full">
-              <span className="font-body text-[var(--color-cream-dim)] text-xs capitalize">{card.type}</span>
+              <span className={`font-body text-white text-opacity-90 ${extraLarge ? 'text-base' : large ? 'text-sm' : 'text-xs'} capitalize drop-shadow`}>
+                {card.type}
+              </span>
             </div>
           )}
 
           {/* Reaction badge */}
           {card.isReaction && !small && (
-            <div className="absolute -top-1 -right-1 bg-[var(--color-crimson)] text-[var(--color-cream)] text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold shadow">
+            <div className={`absolute -top-1 -right-1 bg-[var(--color-crimson)] text-[var(--color-cream)] rounded-full ${badgeSize} flex items-center justify-center font-bold shadow-lg`}>
               R
             </div>
           )}
