@@ -1,26 +1,15 @@
-// ============================================================
-// API SERVICE — bridges NextJS frontend to FastAPI backend
-// All game data flows through here.
-// ============================================================
+// ── API Service — Multiplayer ─────────────────────────────────────────────────
 
-import type {
-  GameState,
-  GameConfig,
-  GameAction,
-  ActionResponse,
-  ApiResponse,
-  Player,
-} from "../entities";
+import type { GameState, PlayerSession } from "../entities";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const WS_URL   = process.env.NEXT_PUBLIC_WS_URL  || "ws://localhost:8000";
 
-async function request<T>(
-  path: string,
-  options?: RequestInit
-): Promise<ApiResponse<T>> {
+async function post<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
+    method: "POST",
     headers: { "Content-Type": "application/json" },
-    ...options,
+    body: JSON.stringify(body),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: "Unknown error" }));
@@ -29,75 +18,55 @@ async function request<T>(
   return res.json();
 }
 
-// ── Game lifecycle ──────────────────────────────────────────
-
-const API_V1 = "/api/v1";
-
-/** Fetch the full config/definition for a game type */
-export async function fetchGameConfig(gameType: string): Promise<GameConfig> {
-  const res = await request<GameConfig>(`${API_V1}/games/${gameType}/config`);
-  return res.data;
+async function get<T>(path: string): Promise<T> {
+  const res = await fetch(`${BASE_URL}${path}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Unknown error" }));
+    throw new Error(err.detail || `HTTP ${res.status}`);
+  }
+  return res.json();
 }
 
-/** Create a new game session */
-export async function createGame(
-  gameType: string,
-  playerNames: string[]
-): Promise<GameState> {
-  const res = await request<GameState>(`${API_V1}/games/create`, {
-    method: "POST",
-    body: JSON.stringify({ game_type: gameType, player_names: playerNames }),
-  });
-  return res.data;
+// ── Room management ───────────────────────────────────────────────────────────
+
+export async function createRoom(
+  hostName: string
+): Promise<{ roomCode: string; playerId: string; gameId: string }> {
+  return post("/api/rooms/create", { host_name: hostName });
 }
 
-/** Fetch the current game state */
-export async function fetchGameState(gameId: string): Promise<GameState> {
-  const res = await request<GameState>(`${API_V1}/games/${gameId}/state`);
-  return res.data;
+export async function joinRoom(
+  roomCode: string,
+  playerName: string
+): Promise<{ playerId: string; roomCode: string }> {
+  return post(`/api/rooms/${roomCode.toUpperCase()}/join`, { player_name: playerName });
 }
 
-/** List all available game types */
-export async function fetchAvailableGames(): Promise<GameConfig[]> {
-  const res = await request<GameConfig[]>(`${API_V1}/games/available`);
-  return res.data;
-}
-
-// ── Game actions ────────────────────────────────────────────
-
-/** Submit any player action to the backend */
-export async function submitAction(
-  gameId: string,
-  action: Omit<GameAction, "id" | "timestamp">
-): Promise<ActionResponse> {
-  const res = await request<ActionResponse>(`${API_V1}/games/${gameId}/action`, {
-    method: "POST",
-    body: JSON.stringify(action),
-  });
-  return res.data;
-}
-
-/** Draw a card */
-export async function drawCard(
-  gameId: string,
+export async function startGame(
+  roomCode: string,
   playerId: string
-): Promise<ActionResponse> {
-  return submitAction(gameId, {
-    type: "draw_card",
-    playerId,
-    metadata: {},
-  });
+): Promise<void> {
+  await post(`/api/rooms/${roomCode.toUpperCase()}/start?player_id=${playerId}`, {});
 }
 
-/** Play a card from hand */
-export async function playCard(
-  gameId: string,
+export async function fetchRoomState(roomCode: string): Promise<GameState> {
+  const res = await get<{ success: boolean; state: GameState }>(
+    `/api/rooms/${roomCode.toUpperCase()}/state`
+  );
+  return res.state;
+}
+
+// ── Game actions ──────────────────────────────────────────────────────────────
+
+export async function sendAction(
+  roomCode: string,
+  type: string,
   playerId: string,
-  cardId: string,
+  cardId?: string,
   targetPlayerId?: string
-): Promise<ActionResponse> {
-  return submitAction(gameId, {
-    type: "play_card",
+): Promise<{ success: boolean; triggeredEffects: string[] }> {
+  return post(`/api/rooms/${roomCode.toUpperCase()}/action`, {
+    type,
     playerId,
     cardId,
     targetPlayerId,
@@ -105,26 +74,35 @@ export async function playCard(
   });
 }
 
-/** Pass the current turn */
-export async function passTurn(
-  gameId: string,
-  playerId: string
-): Promise<ActionResponse> {
-  return submitAction(gameId, {
-    type: "pass_turn",
-    playerId,
-    metadata: {},
-  });
+// ── WebSocket factory ─────────────────────────────────────────────────────────
+
+export function createWebSocket(roomCode: string, playerId: string): WebSocket {
+  return new WebSocket(`${WS_URL}/ws/${roomCode.toUpperCase()}/${playerId}`);
 }
 
-// ── Player helpers ──────────────────────────────────────────
+// ── Session helpers (localStorage) ───────────────────────────────────────────
 
-export async function fetchPlayer(
-  gameId: string,
-  playerId: string
-): Promise<Player> {
-  const state = await fetchGameState(gameId);
-  const player = state.players.find((p) => p.id === playerId);
-  if (!player) throw new Error(`Player ${playerId} not found`);
-  return player;
+const SESSION_KEY = "ek_player_session";
+
+export function saveSession(session: PlayerSession): void {
+  if (typeof window !== "undefined") {
+    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  }
+}
+
+export function loadSession(): PlayerSession | null {
+  if (typeof window === "undefined") return null;
+  const raw = localStorage.getItem(SESSION_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as PlayerSession;
+  } catch {
+    return null;
+  }
+}
+
+export function clearSession(): void {
+  if (typeof window !== "undefined") {
+    localStorage.removeItem(SESSION_KEY);
+  }
 }

@@ -1,138 +1,141 @@
-// ============================================================
-// useGame hook — manages game state, polling, and actions
-// ============================================================
+"use client";
+
+// ── useGame hook — WebSocket-powered real-time game state ─────────────────────
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import {
-  GameState,
-  GameAction,
-  ActionResponse,
-  LogEntry,
-} from "../entities";
-import {
-  fetchGameState,
-  submitAction,
-  drawCard,
-  playCard,
-  passTurn,
-} from "../services/gameApi";
+import type { GameState } from "../entities";
+import { createWebSocket, sendAction, fetchRoomState } from "../services/gameApi";
 
 interface UseGameOptions {
-  gameId: string;
-  localPlayerId: string;
-  pollInterval?: number; // ms, default 2000
+  roomCode: string;
+  playerId: string;
 }
 
 interface UseGameReturn {
   gameState: GameState | null;
+  isConnected: boolean;
   isLoading: boolean;
   error: string | null;
-  // Actions
-  handleDrawCard: () => Promise<void>;
-  handlePlayCard: (cardId: string, targetPlayerId?: string) => Promise<void>;
-  handlePassTurn: () => Promise<void>;
-  handleAction: (action: Omit<GameAction, "id" | "timestamp">) => Promise<ActionResponse | null>;
-  // Helpers
-  localPlayer: GameState["players"][0] | null;
-  isMyTurn: boolean;
-  recentLog: LogEntry[];
-  refresh: () => void;
+  peekCards: string[] | null;       // top-3 cards from See the Future
+  clearPeek: () => void;
+  drawCard: () => Promise<void>;
+  playCard: (cardId: string, targetPlayerId?: string) => Promise<void>;
+  clearError: () => void;
 }
 
-export function useGame({
-  gameId,
-  localPlayerId,
-  pollInterval = 2000,
-}: UseGameOptions): UseGameReturn {
-  const [gameState, setGameState] = useState<GameState | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const pollRef = useRef<NodeJS.Timeout | null>(null);
+export function useGame({ roomCode, playerId }: UseGameOptions): UseGameReturn {
+  const [gameState, setGameState]     = useState<GameState | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const [isLoading, setIsLoading]     = useState(true);
+  const [error, setError]             = useState<string | null>(null);
+  const [peekCards, setPeekCards]     = useState<string[] | null>(null);
 
-  const loadState = useCallback(async () => {
-    try {
-      const state = await fetchGameState(gameId);
-      setGameState(state);
-      setError(null);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load game state");
-    } finally {
+  const wsRef       = useRef<WebSocket | null>(null);
+  const pingRef     = useRef<NodeJS.Timeout | null>(null);
+  const reconnectRef = useRef<NodeJS.Timeout | null>(null);
+  const mountedRef  = useRef(true);
+
+  // ── WebSocket setup ─────────────────────────────────────────────────────────
+  const connect = useCallback(() => {
+    if (!roomCode || !playerId) return;
+
+    const ws = createWebSocket(roomCode, playerId);
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      if (!mountedRef.current) return;
+      setIsConnected(true);
       setIsLoading(false);
-    }
-  }, [gameId]);
-
-  // Initial load + polling
-  useEffect(() => {
-    loadState();
-    pollRef.current = setInterval(loadState, pollInterval);
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-    };
-  }, [loadState, pollInterval]);
-
-  // ── Actions ────────────────────────────────────────────────
-
-  const handleAction = useCallback(
-    async (
-      action: Omit<GameAction, "id" | "timestamp">
-    ): Promise<ActionResponse | null> => {
-      try {
-        const result = await submitAction(gameId, action);
-        if (result.success) {
-          setGameState(result.newState);
-        } else {
-          setError(result.error || "Action failed");
+      // Send keep-alive pings every 20s
+      pingRef.current = setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: "ping" }));
         }
-        return result;
+      }, 20_000);
+    };
+
+    ws.onmessage = (event) => {
+      if (!mountedRef.current) return;
+      try {
+        const msg = JSON.parse(event.data);
+        if (msg.type === "state_update") {
+          setGameState(msg.state as GameState);
+          setIsLoading(false);
+        } else if (msg.type === "error") {
+          setError(msg.message);
+        }
+      } catch { /* ignore malformed */ }
+    };
+
+    ws.onerror = () => {
+      if (!mountedRef.current) return;
+      setIsConnected(false);
+    };
+
+    ws.onclose = () => {
+      if (!mountedRef.current) return;
+      setIsConnected(false);
+      if (pingRef.current) clearInterval(pingRef.current);
+      // Auto-reconnect after 2s
+      reconnectRef.current = setTimeout(() => {
+        if (mountedRef.current) connect();
+      }, 2000);
+    };
+  }, [roomCode, playerId]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    connect();
+
+    // Fallback: also poll once on mount in case WS is slow
+    fetchRoomState(roomCode)
+      .then((s) => { if (mountedRef.current) { setGameState(s); setIsLoading(false); } })
+      .catch(() => {});
+
+    return () => {
+      mountedRef.current = false;
+      wsRef.current?.close();
+      if (pingRef.current)     clearInterval(pingRef.current);
+      if (reconnectRef.current) clearTimeout(reconnectRef.current);
+    };
+  }, [connect, roomCode]);
+
+  // ── Actions ─────────────────────────────────────────────────────────────────
+  const drawCard = useCallback(async () => {
+    try {
+      const res = await sendAction(roomCode, "draw_card", playerId);
+      if (!res.success) setError("Draw failed");
+      // Check if See the Future was triggered
+      const peek = res.triggeredEffects.find((e) => e.startsWith("top3:"));
+      if (peek) setPeekCards(peek.replace("top3:", "").split(","));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Draw failed");
+    }
+  }, [roomCode, playerId]);
+
+  const playCard = useCallback(
+    async (cardId: string, targetPlayerId?: string) => {
+      try {
+        const res = await sendAction(roomCode, "play_card", playerId, cardId, targetPlayerId);
+        if (!res.success) setError("Play failed");
+        const peek = res.triggeredEffects.find((e) => e.startsWith("top3:"));
+        if (peek) setPeekCards(peek.replace("top3:", "").split(","));
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Action failed");
-        return null;
+        setError(e instanceof Error ? e.message : "Play failed");
       }
     },
-    [gameId]
+    [roomCode, playerId]
   );
-
-  const handleDrawCard = useCallback(async () => {
-    const result = await drawCard(gameId, localPlayerId);
-    if (result.success) setGameState(result.newState);
-    else setError(result.error || "Draw failed");
-  }, [gameId, localPlayerId]);
-
-  const handlePlayCard = useCallback(
-    async (cardId: string, targetPlayerId?: string) => {
-      const result = await playCard(gameId, localPlayerId, cardId, targetPlayerId);
-      if (result.success) setGameState(result.newState);
-      else setError(result.error || "Play failed");
-    },
-    [gameId, localPlayerId]
-  );
-
-  const handlePassTurn = useCallback(async () => {
-    const result = await passTurn(gameId, localPlayerId);
-    if (result.success) setGameState(result.newState);
-    else setError(result.error || "Pass turn failed");
-  }, [gameId, localPlayerId]);
-
-  // ── Derived values ─────────────────────────────────────────
-
-  const localPlayer =
-    gameState?.players.find((p) => p.id === localPlayerId) ?? null;
-
-  const isMyTurn = gameState?.currentTurnPlayerId === localPlayerId;
-
-  const recentLog = gameState?.log.slice(-6) ?? [];
 
   return {
     gameState,
+    isConnected,
     isLoading,
     error,
-    handleDrawCard,
-    handlePlayCard,
-    handlePassTurn,
-    handleAction,
-    localPlayer,
-    isMyTurn,
-    recentLog,
-    refresh: loadState,
+    peekCards,
+    clearPeek: () => setPeekCards(null),
+    drawCard,
+    playCard,
+    clearError: () => setError(null),
   };
 }
