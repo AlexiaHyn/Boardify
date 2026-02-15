@@ -989,22 +989,43 @@ def generate_card_images(
     Uses Flux.1-schnell on H100 via .map() for parallel generation.
     Returns dict mapping card_def_id -> JPEG bytes.
     """
-    # Build a consistent style prompt shared by all cards in this game
+    # Strict shared style — every card in a game looks like it belongs to the
+    # same deck.  We intentionally keep per-card variation minimal: only the
+    # single symbolic subject changes; composition, palette, and rendering
+    # style are locked.
     style = (
-        f"minimalist card game illustration for '{game_name}', "
-        "flat vector art, simple centered composition, "
-        "dark atmospheric background with subtle gradient, "
-        "muted elegant colors, clean simple shapes, "
-        "no text, no letters, no words, no numbers, no writing"
+        "dark solid color background with a small simple symbol in the center, "
+        f"card game art for '{game_name}', "
+        "flat vector style, simple geometric shapes, "
+        "one accent color, the symbol is small and non-dominant in the CENTRE, "
+        "mostly empty dark space with a subtle centered motif, "
+        "clean and minimal, no busy details, no scenery, "
+        "no text, no letters, no words, no numbers, no writing, "
+        "uniform lighting, same art style for every card"
     )
+
+    # Map card type to a single accent colour hint so cards of the same type
+    # share a palette, further reducing inter-card variance.
+    _TYPE_ACCENT = {
+        "action":   "teal accent",
+        "defense":  "green accent",
+        "reaction": "red accent",
+        "special":  "amber accent",
+        "combo":    "pink accent",
+        "wild":     "rainbow accent",
+        "number":   "blue accent",
+    }
 
     prompts = []
     card_ids = []
 
     for card_def in card_definitions:
+        accent = _TYPE_ACCENT.get(card_def.get("type", ""), "neutral accent")
+        # Use only the card name as the subject — skip the long description
+        # to keep generations tight and consistent.
         card_prompt = (
-            f"{style}, depicting: {card_def['name']} — "
-            f"{card_def.get('description', card_def['name'])}"
+            f"{style}, {accent}, "
+            f"small subtle symbol of: {card_def['name']}"
         )
         prompts.append(card_prompt)
         card_ids.append(card_def["id"])

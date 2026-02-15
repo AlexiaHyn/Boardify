@@ -58,7 +58,7 @@ export function GameCard({
 	const [imgError, setImgError] = useState(false);
 
 	const isHidden = faceDown || card.type === "hidden";
-	const imgSrc = !isHidden ? cardImageUrl(card) : null;
+	const  imgSrc = !isHidden ? cardImageUrl(card) : null;
 	const hasImage = !!imgSrc && !imgError;
 
 	// Use gradient background when no image; just border when image present
