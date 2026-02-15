@@ -19,12 +19,12 @@ from pathlib import Path
 
 app = modal.App("boardify-game-generator")
 
-# Resolve project root at deploy time (locally) for .env secrets.
-# Inside the Modal container _project_root falls back to /root harmlessly.
+# Resolve backend root at deploy time (locally) for .env secrets.
+# Inside the Modal container _backend_root falls back to /root harmlessly.
 try:
-    _project_root = Path(__file__).resolve().parents[3]       # .../game-engine
+    _backend_root = Path(__file__).resolve().parents[2]       # .../backend
 except (IndexError, OSError):
-    _project_root = Path("/root")
+    _backend_root = Path("/root")
 
 # Main image — NO local file mounts (template is inlined below)
 image = (
@@ -392,7 +392,7 @@ GAME_TEMPLATE = r'''{
 
 @app.function(
     image=image,
-    secrets=[modal.Secret.from_dotenv(path=str(_project_root))],
+    secrets=[modal.Secret.from_dotenv(path=str(_backend_root))],
     timeout=60,
 )
 def research_game_rules(game_name: str) -> str:
@@ -453,7 +453,7 @@ def research_game_rules(game_name: str) -> str:
 
 @app.function(
     image=image,
-    secrets=[modal.Secret.from_dotenv(path=str(_project_root))],
+    secrets=[modal.Secret.from_dotenv(path=str(_backend_root))],
     timeout=180,
 )
 def generate_game_json(
