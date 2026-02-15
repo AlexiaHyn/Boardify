@@ -178,6 +178,10 @@ export type GamePhase = GameState["phase"];
 export interface GameInfo {
 	id: string;
 	name: string;
+	description?: string;
+	emoji?: string;
+	themeColor?: string;
+	playerCount?: string;
 }
 
 export interface SeeTheFutureData {

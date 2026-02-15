@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { GAMES, type GameConfig } from '@/lib/games';
+import { GAMES, mergeBackendGames, type GameConfig } from '@/lib/games';
+import { listGames } from '@/lib/api';
 
 /* ─── Decorative Diamond ──────────────────────────────────────────── */
 
@@ -17,10 +18,31 @@ function Diamond({ className = '' }: { className?: string }) {
 /* ─── Page ────────────────────────────────────────────────────────── */
 
 export default function ShowcasePage() {
-  // Re-read GAMES on the client so localStorage-hydrated entries appear
   const [games, setGames] = useState<GameConfig[]>([]);
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
-    setGames([...GAMES]);
+    let cancelled = false;
+
+    async function load() {
+      try {
+        const backendGames = await listGames();
+        if (!cancelled) {
+          mergeBackendGames(backendGames);
+        }
+      } catch (err) {
+        // Backend unreachable — just show localStorage games
+        console.warn('Could not fetch games from backend:', err);
+      } finally {
+        if (!cancelled) {
+          setGames([...GAMES]);
+          setLoading(false);
+        }
+      }
+    }
+
+    load();
+    return () => { cancelled = true; };
   }, []);
 
   return (
@@ -77,7 +99,14 @@ export default function ShowcasePage() {
         </div>
 
         {/* Game Cards */}
-        {games.length === 0 ? (
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20 animate-fade-in">
+            <div className="text-4xl mb-4 animate-pulse">🎴</div>
+            <p className="font-body text-sm text-[var(--color-stone)]">
+              Loading games&hellip;
+            </p>
+          </div>
+        ) : games.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 animate-fade-in">
             <div className="text-5xl mb-6 opacity-40">🎲</div>
             <p className="font-display text-lg tracking-wide text-[var(--color-stone)] mb-2">
@@ -98,12 +127,15 @@ export default function ShowcasePage() {
           <div className="grid grid-cols-1 gap-6 pb-24 md:grid-cols-3">
             {games.map((game, i) => (
               <Link
-                key={game.id}
+                key={game.gameType}
                 href={`/room?game=${game.gameType}`}
                 className={`playing-card group animate-card-deal stagger-${i + 1}`}
               >
                 {/* Color band */}
-                <div className="playing-card-band playing-card-band--gold" />
+                <div
+                  className="playing-card-band"
+                  style={{ backgroundColor: game.accentColor }}
+                />
 
                 <div className="p-6">
                   {/* Emoji */}
@@ -117,7 +149,7 @@ export default function ShowcasePage() {
                   </h2>
 
                   {/* Description */}
-                  <p className="font-body mb-5 text-sm font-light leading-relaxed text-[var(--color-stone)]">
+                  <p className="font-body mb-5 text-sm font-light leading-relaxed text-[var(--color-stone)] line-clamp-3">
                     {game.description}
                   </p>
 
@@ -126,7 +158,10 @@ export default function ShowcasePage() {
                     <span className="font-body text-xs text-[var(--color-stone-dim)]">
                       {game.playerCount}
                     </span>
-                    <span className="font-display text-[10px] font-medium tracking-wider text-[var(--color-gold-dim)] transition-colors group-hover:text-[var(--color-gold)]">
+                    <span
+                      className="font-display text-[10px] font-medium tracking-wider transition-colors"
+                      style={{ color: game.accentColor }}
+                    >
                       PLAY &#8594;
                     </span>
                   </div>
