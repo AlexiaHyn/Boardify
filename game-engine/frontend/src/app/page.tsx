@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { createRoom, listGames } from '@/lib/api';
 import { useEffect } from 'react';
 import type { GameInfo } from '@/types/game';
@@ -108,6 +109,11 @@ export default function HomePage() {
 
         <p className="text-center text-white/30 text-sm mt-6">
           Share the room code with friends to play together
+        </p>
+        <p className="text-center mt-4">
+          <Link href="/showcase" className="text-white/50 hover:text-white/70 text-sm">
+            View showcase →
+          </Link>
         </p>
       </div>
     </div>

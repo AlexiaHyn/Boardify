@@ -3,6 +3,8 @@ HTTP API routes for room management and game actions.
 """
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, HTTPException
 
 from app.schemas.requests import (
@@ -10,9 +12,10 @@ from app.schemas.requests import (
     CreateRoomRequest, CreateRoomResponse,
     JoinRoomRequest, JoinRoomResponse,
 )
-from app.services import game_loader, room_manager
+from app.services import game_loader, room_manager, showcase
 
 router = APIRouter(prefix="/api")
+logger = logging.getLogger(__name__)
 
 
 # ── Game catalogue ────────────────────────────────────────────────────────────
@@ -79,6 +82,8 @@ async def start_room(room_code: str, player_id: str):
         raise HTTPException(status_code=400, detail=error)
 
     room_manager.save_state(room_code, state)
+    inserted = showcase.record_game_started(room_code, state)
+    logger.info("showcase start hook: room=%s inserted=%s", room_code, inserted)
     await room_manager.broadcast_state(room_code)
     return {"success": True}
 
@@ -98,6 +103,8 @@ async def room_action(room_code: str, action: ActionRequest):
         raise HTTPException(status_code=400, detail=error)
 
     room_manager.save_state(room_code, state)
+    if state.phase == "ended":
+        showcase.record_game_ended(room_code, state, status="completed")
     await room_manager.broadcast_state(room_code)
     return ActionResponse(success=True, triggeredEffects=triggered)
 
