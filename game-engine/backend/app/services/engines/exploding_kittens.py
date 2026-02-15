@@ -27,7 +27,8 @@ from typing import Any, Dict, List, Optional, Tuple
 from app.models.game import Card, GameState, Player
 from app.services.engines.game_plugin_base import GamePluginBase
 from app.services.engines.universal import (
-    _log, _active, _draw_zone, _discard_zone, _get_player
+    _log, _active, _draw_zone, _discard_zone, _get_player,
+    EFFECT_HANDLERS,
 )
 
 
@@ -52,10 +53,12 @@ class ExplodingKittensPlugin(GamePluginBase):
     def get_custom_actions(self) -> Dict[str, callable]:
         """Return custom action handlers for Exploding Kittens."""
         return {
+            "play_card": self._handle_play_card,
             "draw_card": self._handle_draw_card,
             "insert_exploding": self._handle_insert_exploding,
             "give_card": self._handle_give_card,
             "nope": self._handle_nope,
+            "resolve_nope_window": self._handle_resolve_nope_window,
         }
 
     # -------------------------------------------------------------------------
@@ -81,6 +84,185 @@ class ExplodingKittensPlugin(GamePluginBase):
     # -------------------------------------------------------------------------
     # Action Handlers
     # -------------------------------------------------------------------------
+
+    def _handle_play_card(self, state: GameState, action) -> Tuple[bool, str, List[str]]:
+        """
+        Custom play_card for Exploding Kittens with Nope window support.
+
+        Instead of immediately executing card effects, this creates a
+        'nope_window' pending action. Other players can play Nope to cancel
+        the card, or someone can click 'Continue' to resolve the effects.
+
+        Cards that skip the nope window:
+        - Nope cards (handled by the 'nope' action type)
+        """
+        player = _get_player(state, action.playerId)
+        if not player:
+            return False, "Player not found", []
+        if state.currentTurnPlayerId != player.id:
+            return False, "Not your turn", []
+        if state.phase not in ("playing",):
+            return False, "Cannot play a card right now", []
+
+        card = next((c for c in player.hand.cards if c.id == action.cardId), None)
+        if not card:
+            return False, "Card not in hand", []
+
+        # Handle combo pair: validate and remove the second card too
+        combo_pair_id = (action.metadata or {}).get("comboPairId")
+        combo_pair_card = None
+        if combo_pair_id:
+            combo_pair_card = next(
+                (c for c in player.hand.cards if c.id == combo_pair_id and c.id != card.id),
+                None,
+            )
+            if not combo_pair_card:
+                return False, "Combo pair card not in hand", []
+            if combo_pair_card.subtype != card.subtype:
+                return False, "Combo pair cards must match", []
+
+        # Move card(s) from hand to discard
+        player.hand.cards.remove(card)
+        discard = _discard_zone(state)
+        if discard:
+            discard.cards.insert(0, card)
+        if combo_pair_card:
+            player.hand.cards.remove(combo_pair_card)
+            if discard:
+                discard.cards.insert(0, combo_pair_card)
+
+        # Log the play
+        if combo_pair_card:
+            state.log.append(_log(
+                f"{player.name} played {card.name} combo! Waiting for Nopes...",
+                "action", player.id, card.id,
+            ))
+        else:
+            state.log.append(_log(
+                f"{player.name} played {card.name}! Waiting for Nopes...",
+                "action", player.id, card.id,
+            ))
+
+        # Create nope window - pause before applying effects
+        state.phase = "awaiting_response"
+        state.pendingAction = {
+            "type": "nope_window",
+            "playerId": player.id,
+            "cardId": card.id,
+            "card": card.model_dump(),
+            "cardName": card.name,
+            "effects": [eff.dict() for eff in card.effects],
+            "originalAction": {
+                "playerId": action.playerId,
+                "cardId": action.cardId,
+                "targetPlayerId": getattr(action, "targetPlayerId", None),
+                "metadata": getattr(action, "metadata", None) or {},
+            },
+            "nopeCount": 0,
+        }
+
+        return True, "", [f"nope_window:{card.subtype}"]
+
+    def _handle_resolve_nope_window(self, state: GameState, action) -> Tuple[bool, str, List[str]]:
+        """
+        Resolve a nope window after the countdown expires.
+
+        Checks the final nopeCount to decide:
+        - Even (0, 2, 4, ...): action goes through → execute effects
+        - Odd (1, 3, 5, ...): action was Noped → cancel without effects
+        """
+        pending = state.pendingAction
+        if not pending or pending.get("type") != "nope_window":
+            return False, "No nope window to resolve", []
+
+        card_data = pending["card"]
+        effects = pending["effects"]
+        original_action = pending["originalAction"]
+        card_player_id = pending["playerId"]
+        nope_count = pending.get("nopeCount", 0)
+        card_name = pending.get("cardName", "action")
+
+        # Clear the pending action in all cases
+        state.pendingAction = None
+        state.phase = "playing"
+
+        # If odd number of Nopes → action is cancelled
+        if nope_count % 2 == 1:
+            state.log.append(_log(
+                f"{card_name} was cancelled by Nope!",
+                "system",
+            ))
+            # Turn stays with the original card player (they wasted their card
+            # but still need to play more cards or draw)
+            return True, "", ["noped", "nope_resolved"]
+
+        # Even Nopes (including 0) → action goes through
+        card = Card(**card_data)
+        player = _get_player(state, card_player_id)
+        if not player:
+            return False, "Player not found", []
+
+        if nope_count == 0:
+            state.log.append(_log(
+                f"No Nope! {card.name} takes effect.",
+                "system",
+            ))
+        else:
+            state.log.append(_log(
+                f"After {nope_count} Nopes, {card.name} takes effect!",
+                "system",
+            ))
+
+        # Execute each effect (same logic as universal._action_play_card)
+        triggered: List[str] = [f"played:{card.subtype}"]
+
+        for eff in effects:
+            etype = eff["type"]
+
+            # Check plugin custom effects first
+            handler = self.get_custom_effects().get(etype)
+
+            # Fall back to universal effect handlers
+            if handler is None:
+                handler = EFFECT_HANDLERS.get(etype)
+
+            if handler is None:
+                continue
+
+            # Build a mock action with original action data
+            class _ActionProxy:
+                def __init__(self, data):
+                    self.playerId = data.get("playerId")
+                    self.cardId = data.get("cardId")
+                    self.targetPlayerId = data.get("targetPlayerId")
+                    self.metadata = data.get("metadata", {})
+
+            proxy_action = _ActionProxy(original_action)
+
+            try:
+                result = handler(state, player, card, eff, proxy_action, triggered)
+            except Exception as e:
+                print(f"Error in effect handler for {etype}: {e}")
+                import traceback
+                traceback.print_exc()
+                continue
+
+            if result is None:
+                continue
+            # Handle needs_target (e.g. Favor without a pre-selected target)
+            if result.get("needs_target"):
+                state.phase = "awaiting_response"
+                state.pendingAction = {
+                    "type": result.get("pending_type", "select_target"),
+                    "playerId": player.id,
+                    "cardId": card.id,
+                }
+                return True, "", triggered
+
+        if state.phase == "ended":
+            return True, "", triggered
+
+        return True, "", triggered
 
     def _handle_draw_card(self, state: GameState, action) -> Tuple[bool, str, List[str]]:
         """
@@ -239,7 +421,14 @@ class ExplodingKittensPlugin(GamePluginBase):
         Handle Nope card to cancel actions.
 
         Nope can cancel any action except Exploding Kitten or Defuse.
-        Nopes can be chained - you can Nope a Nope!
+        Nopes can be chained — you can Nope a Nope!
+
+        The nope window stays alive throughout the entire chain. Each Nope
+        increments `nopeCount` on the pending action. The countdown resets
+        on the frontend so other players can counter-Nope. Final resolution
+        happens when the countdown expires (resolve_nope_window):
+        - Odd nopeCount → action is cancelled
+        - Even nopeCount → effects are applied
 
         IMPORTANT: Playing Nope does NOT end your turn if it's your turn.
         Nope is a reaction card that can be played during other players' turns.
@@ -248,8 +437,12 @@ class ExplodingKittensPlugin(GamePluginBase):
         if not player:
             return False, "Player not found", []
 
-        # Check for Nope card in hand
-        nope_card = next((c for c in player.hand.cards if c.subtype == "nope"), None)
+        # Find the specific Nope card (use cardId from action if provided)
+        card_id = getattr(action, "cardId", None)
+        if card_id:
+            nope_card = next((c for c in player.hand.cards if c.id == card_id and c.subtype == "nope"), None)
+        else:
+            nope_card = next((c for c in player.hand.cards if c.subtype == "nope"), None)
         if not nope_card:
             return False, "No Nope card in hand", []
 
@@ -258,55 +451,44 @@ class ExplodingKittensPlugin(GamePluginBase):
         if not pending:
             return False, "Nothing to Nope", []
 
-        # Cannot Nope certain actions
-        nopeable_types = ["favor", "shuffle", "steal"]
-        if pending.get("type") not in nopeable_types:
-            # For now, we allow Noping most pending actions
-            # Could add blacklist for un-nopeable actions
-            pass
+        # Cannot Nope Exploding Kitten resolution or bomb reinsertion
+        un_nopeable = ["insert_exploding"]
+        if pending.get("type") in un_nopeable:
+            return False, "Cannot Nope this action", []
 
-        # Remove Nope card from hand
+        # Remove Nope card from hand and discard it
         player.hand.cards.remove(nope_card)
         discard = _discard_zone(state)
         if discard:
             discard.cards.insert(0, nope_card)
 
-        # Check if this is a Nope chain
+        # Increment the Nope chain count — keep the nope window alive
         nope_count = pending.get("nopeCount", 0)
         nope_count += 1
-
-        # Allow more Nopes (set up for potential Nope chain)
         pending["nopeCount"] = nope_count
         pending["lastNoper"] = player.id
 
+        card_name = pending.get("cardName", pending.get("type", "action"))
+
         state.log.append(_log(
-            f"🚫 {player.name} played Nope! (Nope #{nope_count})",
+            f"🚫 {player.name} played Nope!",
             "action", player.id, nope_card.id
         ))
 
-        # For simplicity, immediately resolve the Nope
-        # If odd number of Nopes, action is cancelled
-        # If even number of Nopes, action proceeds
         if nope_count % 2 == 1:
-            # Action is Noped - cancel it
-            state.pendingAction = None
-            state.phase = "playing"
+            # Odd nopes: action is currently cancelled
+            # But keep the window open so someone can counter-Nope!
             state.log.append(_log(
-                f"Action cancelled by Nope!",
+                f"{card_name} is Noped! Play another Nope to counter...",
                 "system"
             ))
-            # Return to the original player's turn (whoever played the original card)
-            # Don't advance turn
             return True, "", ["noped"]
         else:
-            # Nope was Noped - action proceeds
+            # Even nopes: Nope was counter-Noped, action back on
             state.log.append(_log(
-                f"Nope was Noped! Action proceeds.",
+                f"The Nope was Noped! {card_name} is back on.",
                 "system"
             ))
-            # Keep the pending action active
-            # Reset nope count for next potential nope
-            pending["nopeCount"] = 0
             return True, "", ["nope_noped"]
 
     # -------------------------------------------------------------------------

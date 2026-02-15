@@ -110,6 +110,11 @@ export function useGameActions({ roomCode, playerId, gameState, onTriggeredEffec
     [dispatch, playerId],
   );
 
+  const resolveNopeWindow = useCallback(
+    () => dispatch({ type: 'resolve_nope_window', playerId }),
+    [dispatch, playerId],
+  );
+
   return {
     loading,
     error,
@@ -122,5 +127,6 @@ export function useGameActions({ roomCode, playerId, gameState, onTriggeredEffec
     giveCard,
     respondToPendingAction,
     executeDefaultAction,
+    resolveNopeWindow,
   };
 }
