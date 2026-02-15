@@ -74,7 +74,7 @@ export function Lobby({ gameState, localPlayerId, onStart, onCopyLink, startLoad
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  {player.metadata?.isHost && (
+                  {!!player.metadata?.isHost && (
                     <span className="bg-yellow-500/20 text-yellow-400 text-xs px-2 py-0.5 rounded-full border border-yellow-500/30">
                       Host
                     </span>

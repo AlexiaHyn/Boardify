@@ -1,114 +1,105 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { createRoom, listGames } from '@/lib/api';
-import { useEffect } from 'react';
-import type { GameInfo } from '@/types/game';
 
-export default function HomePage() {
-  const router = useRouter();
-  const [name, setName] = useState('');
-  const [gameType, setGameType] = useState('exploding_kittens');
-  const [games, setGames] = useState<GameInfo[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    listGames().then(setGames).catch(() => {
-      setGames([{ id: 'exploding_kittens', name: 'Exploding Kittens' }]);
-    });
-  }, []);
-
-  const handleCreate = async () => {
-    if (!name.trim()) { setError('Enter your name'); return; }
-    setLoading(true);
-    setError('');
-    try {
-      const data = await createRoom({ host_name: name.trim(), game_type: gameType });
-      // Store player identity
-      sessionStorage.setItem(`player_${data.roomCode}`, data.playerId);
-      router.push(`/room/${data.roomCode}`);
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  };
+export default function ImaginePage() {
+  const [prompt, setPrompt] = useState('');
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        {/* Logo */}
-        <div className="text-center mb-10">
-          <div className="text-7xl mb-4">🃏</div>
-          <h1 className="text-white text-4xl font-bold">Card Game Engine</h1>
-          <p className="text-white/50 mt-2">Play any card game with friends online</p>
-        </div>
+    <div className="min-h-screen bg-[#07070A] relative overflow-hidden">
+      {/* Layered atmospheric gradients */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-violet-600/[0.07] rounded-full blur-[120px]" />
+        <div className="absolute bottom-0 right-0 w-[600px] h-[400px] bg-amber-600/[0.04] rounded-full blur-[100px]" />
+      </div>
 
-        <div className="bg-black/40 rounded-2xl p-8 border border-white/10 space-y-5">
-          {/* Name */}
-          <div>
-            <label className="text-white/60 text-sm block mb-2">Your Name</label>
-            <input
-              type="text"
-              placeholder="e.g. PlayerOne"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
-              maxLength={20}
-              className="w-full bg-gray-800 border border-white/20 rounded-xl px-4 py-3 text-white placeholder:text-white/30 focus:outline-none focus:border-blue-500 transition-colors"
-            />
-          </div>
+      {/* Subtle grid texture */}
+      <div
+        className="absolute inset-0 opacity-[0.015] pointer-events-none"
+        style={{
+          backgroundImage:
+            'linear-gradient(rgba(255,255,255,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.15) 1px, transparent 1px)',
+          backgroundSize: '72px 72px',
+        }}
+      />
 
-          {/* Game selector */}
-          <div>
-            <label className="text-white/60 text-sm block mb-2">Game</label>
-            <select
-              value={gameType}
-              onChange={(e) => setGameType(e.target.value)}
-              className="w-full bg-gray-800 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition-colors"
-            >
-              {games.length === 0 ? (
-                <option value="exploding_kittens">Exploding Kittens</option>
-              ) : (
-                games.map((g) => (
-                  <option key={g.id} value={g.id}>{g.name}</option>
-                ))
-              )}
-            </select>
-          </div>
-
-          {error && (
-            <p className="text-red-400 text-sm bg-red-900/20 rounded-lg px-3 py-2">{error}</p>
-          )}
-
-          {/* Create */}
-          <button
-            onClick={handleCreate}
-            disabled={loading}
-            className="w-full bg-green-500 hover:bg-green-400 disabled:bg-gray-700 disabled:text-white/30 text-white font-bold py-4 rounded-2xl text-lg transition-all hover:scale-[1.02] active:scale-100 shadow-lg shadow-green-500/20"
+      <div className="relative z-10 min-h-screen flex flex-col">
+        {/* Nav */}
+        <nav className="flex items-center justify-between px-8 py-6">
+          <Link
+            href="/"
+            className="font-display text-xl font-bold text-white tracking-tight"
           >
-            {loading ? '⏳ Creating…' : '🚀 Create Room'}
-          </button>
-
-          <div className="relative">
-            <div className="border-t border-white/10" />
-            <span className="absolute left-1/2 -translate-x-1/2 -top-3 bg-gray-900 px-3 text-white/30 text-sm">or</span>
-          </div>
-
-          {/* Join */}
-          <button
-            onClick={() => router.push('/join')}
-            className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-2xl text-lg transition-all hover:scale-[1.02] active:scale-100"
+            Boardify
+          </Link>
+          <Link
+            href="/showcase"
+            className="text-zinc-400 hover:text-white transition-colors text-sm font-medium flex items-center gap-1.5"
           >
-            🔗 Join with Room Code
-          </button>
-        </div>
+            Browse Games <span className="text-lg leading-none">&#8594;</span>
+          </Link>
+        </nav>
 
-        <p className="text-center text-white/30 text-sm mt-6">
-          Share the room code with friends to play together
-        </p>
+        {/* Main content */}
+        <div className="flex-1 flex items-center justify-center px-4 pb-24">
+          <div className="w-full max-w-2xl">
+            {/* Heading */}
+            <div className="text-center mb-12">
+              <p className="text-violet-400/80 text-sm font-semibold tracking-[0.2em] uppercase mb-5">
+                Dream it up
+              </p>
+              <h1 className="font-display text-5xl sm:text-6xl md:text-7xl font-extrabold text-white leading-[0.95] tracking-tight mb-6">
+                Imagine
+                <br />
+                a Game
+              </h1>
+              <p className="text-zinc-500 text-lg max-w-md mx-auto leading-relaxed">
+                Describe your dream board game and we&apos;ll bring it to life.
+                Any rules, any theme, any world.
+              </p>
+            </div>
+
+            {/* Input area */}
+            <div className="space-y-4">
+              <textarea
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                placeholder="A card game where mythical creatures battle across elemental realms..."
+                rows={4}
+                className="w-full bg-white/[0.03] border border-white/[0.08] rounded-2xl px-6 py-5 text-white placeholder:text-zinc-600 focus:outline-none focus:border-violet-500/40 focus:bg-white/[0.05] transition-all duration-300 resize-none text-lg leading-relaxed"
+              />
+              <button
+                disabled
+                className="w-full bg-violet-600/30 border border-violet-500/20 text-violet-300/50 cursor-not-allowed font-bold py-4 rounded-2xl text-lg tracking-wide"
+              >
+                Generate Game &mdash; Coming Soon
+              </button>
+            </div>
+
+            {/* Divider */}
+            <div className="mt-16 flex items-center gap-4">
+              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+              <span className="text-zinc-600 text-xs font-medium tracking-wider uppercase">
+                or play now
+              </span>
+              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+            </div>
+
+            {/* Browse games CTA */}
+            <div className="mt-8 text-center">
+              <Link
+                href="/showcase"
+                className="inline-flex items-center gap-3 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] hover:border-white/[0.15] text-white px-8 py-4 rounded-2xl transition-all duration-300 font-semibold group"
+              >
+                Browse Available Games
+                <span className="text-zinc-500 group-hover:text-white group-hover:translate-x-0.5 transition-all">
+                  &#8594;
+                </span>
+              </Link>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

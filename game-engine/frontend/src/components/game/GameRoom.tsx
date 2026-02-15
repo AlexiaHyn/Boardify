@@ -148,7 +148,7 @@ export function GameRoom({ roomCode, playerId, initialState }: GameRoomProps) {
   };
 
   const handleCopyLink = () => {
-    const url = `${window.location.origin}/join?room=${roomCode}`;
+    const url = window.location.href;
     navigator.clipboard.writeText(url).catch(() => {
       // fallback: show room code
     });
