@@ -1,7 +1,8 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { GAMES } from '@/lib/games';
+import { GAMES, type GameConfig } from '@/lib/games';
 
 /* ─── Decorative Diamond ──────────────────────────────────────────── */
 
@@ -13,17 +14,15 @@ function Diamond({ className = '' }: { className?: string }) {
   );
 }
 
-/* ─── Band color map ──────────────────────────────────────────────── */
-
-const BAND_COLORS: Record<string, string> = {
-  exploding_kittens: 'playing-card-band--amber',
-  poker: 'playing-card-band--crimson',
-  uno: 'playing-card-band--teal',
-};
-
 /* ─── Page ────────────────────────────────────────────────────────── */
 
 export default function ShowcasePage() {
+  // Re-read GAMES on the client so localStorage-hydrated entries appear
+  const [games, setGames] = useState<GameConfig[]>([]);
+  useEffect(() => {
+    setGames([...GAMES]);
+  }, []);
+
   return (
     <main className="relative min-h-screen px-4 py-12">
       {/* Backdrop */}
@@ -78,47 +77,64 @@ export default function ShowcasePage() {
         </div>
 
         {/* Game Cards */}
-        <div className="grid grid-cols-1 gap-6 pb-24 md:grid-cols-3">
-          {GAMES.map((game, i) => (
+        {games.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 animate-fade-in">
+            <div className="text-5xl mb-6 opacity-40">🎲</div>
+            <p className="font-display text-lg tracking-wide text-[var(--color-stone)] mb-2">
+              No games installed yet
+            </p>
+            <p className="font-body text-sm text-[var(--color-stone-dim)] mb-8 text-center max-w-sm">
+              Generate your first game from the home page and it will appear here.
+            </p>
             <Link
-              key={game.id}
-              href={`/room?game=${game.gameType}`}
-              className={`playing-card group animate-card-deal stagger-${i + 1}`}
+              href="/"
+              className="btn-press flex items-center gap-2 rounded-lg border border-[var(--color-gold-dim)] px-6 py-3 font-display text-xs font-medium tracking-wider text-[var(--color-gold)] transition-all hover:border-[var(--color-gold)] hover:bg-[var(--color-gold-muted)] hover:text-[var(--color-gold-bright)]"
             >
-              {/* Color band */}
-              <div
-                className={`playing-card-band ${BAND_COLORS[game.gameType] || 'playing-card-band--gold'}`}
-              />
-
-              <div className="p-6">
-                {/* Emoji */}
-                <div className="mb-4 text-4xl transition-transform duration-300 group-hover:scale-110 origin-left">
-                  {game.emoji}
-                </div>
-
-                {/* Name */}
-                <h2 className="font-display mb-2 text-xl font-semibold tracking-wide text-[var(--color-cream)]">
-                  {game.name}
-                </h2>
-
-                {/* Description */}
-                <p className="font-body mb-5 text-sm font-light leading-relaxed text-[var(--color-stone)]">
-                  {game.description}
-                </p>
-
-                {/* Footer */}
-                <div className="flex items-center justify-between">
-                  <span className="font-body text-xs text-[var(--color-stone-dim)]">
-                    {game.playerCount}
-                  </span>
-                  <span className="font-display text-[10px] font-medium tracking-wider text-[var(--color-gold-dim)] transition-colors group-hover:text-[var(--color-gold)]">
-                    PLAY &#8594;
-                  </span>
-                </div>
-              </div>
+              CREATE A GAME
+              <span className="text-sm">&#8594;</span>
             </Link>
-          ))}
-        </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-6 pb-24 md:grid-cols-3">
+            {games.map((game, i) => (
+              <Link
+                key={game.id}
+                href={`/room?game=${game.gameType}`}
+                className={`playing-card group animate-card-deal stagger-${i + 1}`}
+              >
+                {/* Color band */}
+                <div className="playing-card-band playing-card-band--gold" />
+
+                <div className="p-6">
+                  {/* Emoji */}
+                  <div className="mb-4 text-4xl transition-transform duration-300 group-hover:scale-110 origin-left">
+                    {game.emoji}
+                  </div>
+
+                  {/* Name */}
+                  <h2 className="font-display mb-2 text-xl font-semibold tracking-wide text-[var(--color-cream)]">
+                    {game.name}
+                  </h2>
+
+                  {/* Description */}
+                  <p className="font-body mb-5 text-sm font-light leading-relaxed text-[var(--color-stone)]">
+                    {game.description}
+                  </p>
+
+                  {/* Footer */}
+                  <div className="flex items-center justify-between">
+                    <span className="font-body text-xs text-[var(--color-stone-dim)]">
+                      {game.playerCount}
+                    </span>
+                    <span className="font-display text-[10px] font-medium tracking-wider text-[var(--color-gold-dim)] transition-colors group-hover:text-[var(--color-gold)]">
+                      PLAY &#8594;
+                    </span>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
     </main>
   );

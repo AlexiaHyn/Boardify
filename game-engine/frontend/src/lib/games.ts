@@ -48,47 +48,9 @@ function saveCustomGames(games: GameConfig[]) {
   }
 }
 
-// ── Built-in (static) games ─────────────────────────────────────────────────
+// ── Mutable game list (installed/custom games only) ──────────────────────────
 
-const BUILT_IN_GAMES: GameConfig[] = [
-  {
-    id: 0,
-    name: 'Exploding Kittens',
-    description:
-      'A strategic card game of kitty-powered mayhem. Draw cards, avoid explosions, and be the last player standing.',
-    emoji: '🐱',
-    accentColor: '#FF6B35',
-    accentColorRgb: '255, 107, 53',
-    playerCount: '2–5 players',
-    gameType: 'exploding_kittens',
-  },
-  {
-    id: 1,
-    name: 'Poker',
-    description:
-      'The timeless game of skill, strategy, and nerve. Read your opponents, manage your chips, and claim the pot.',
-    emoji: '♠️',
-    accentColor: '#E63946',
-    accentColorRgb: '230, 57, 70',
-    playerCount: '2–8 players',
-    gameType: 'poker',
-  },
-  {
-    id: 2,
-    name: 'Uno',
-    description:
-      'Match colors, stack cards, and unleash chaos. The classic card game that turns friends into rivals.',
-    emoji: '🎴',
-    accentColor: '#2EC4B6',
-    accentColorRgb: '46, 196, 182',
-    playerCount: '2–10 players',
-    gameType: 'uno',
-  },
-];
-
-// ── Mutable game list (built-ins + dynamic) ─────────────────────────────────
-
-export const GAMES: GameConfig[] = [...BUILT_IN_GAMES];
+export const GAMES: GameConfig[] = [];
 
 // Hydrate from localStorage on the client
 if (typeof window !== 'undefined') {
@@ -128,11 +90,8 @@ export function addGame(
 
   GAMES.push(game);
 
-  // Persist only custom (non-built-in) games
-  const customGames = GAMES.filter(
-    (g) => !BUILT_IN_GAMES.some((b) => b.gameType === g.gameType),
-  );
-  saveCustomGames(customGames);
+  // Persist all games to localStorage
+  saveCustomGames([...GAMES]);
 
   return game;
 }
