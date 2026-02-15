@@ -67,6 +67,9 @@ from typing import Any, Dict, List, Optional, Tuple
 from app.models.game import Card, GameState, Hand, LogEntry, Player, Zone
 from app.services.game_loader import build_deck_from_definitions, _parse_card_definitions
 
+# NOTE: plugin_loader import is deferred to after utility functions are defined,
+# to avoid circular import (exploding_kittens.py imports _log, _active, etc. from here).
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Utilities
@@ -348,7 +351,7 @@ def _effect_number(state, player, card, effect, action, triggered):
 
 def _effect_skip(state, player, card, effect, action, triggered):
     """Skip next player(s)."""
-    skip_count = effect.get("value", 1)
+    skip_count = effect.get("value") or 1
     active = _active(state)
     _set_active_color(state, card)
     if len(active) == 2 and _cfg(state).get("reverseEqualsSkipTwoPlayers") and card.subtype == "reverse":
@@ -385,7 +388,7 @@ def _effect_reverse(state, player, card, effect, action, triggered):
 
 def _effect_draw(state, player, card, effect, action, triggered):
     """Force target player(s) to draw N cards."""
-    n = effect.get("value", 1)
+    n = effect.get("value") or 1
     target_mode = effect.get("target", "next_player")
     stackable = _cfg(state).get("stackableDraw", False)
 
@@ -432,7 +435,7 @@ def _effect_draw(state, player, card, effect, action, triggered):
 
 def _effect_self_draw(state, player, card, effect, action, triggered):
     """Current player draws N cards (e.g. draw-a-card penalty or bonus)."""
-    n = effect.get("value", 1)
+    n = effect.get("value") or 1
     _draw_n(state, player, n)
     state.log.append(_log(
         f"{player.name} draws {n} card{'s' if n>1 else ''}.",
@@ -469,7 +472,7 @@ def _effect_wild(state, player, card, effect, action, triggered):
 
 def _effect_wild_draw(state, player, card, effect, action, triggered):
     """Wild + force next player to draw N. Triggers color picker first."""
-    n = effect.get("value", 4)
+    n = effect.get("value") or 4
     chosen = (action.metadata or {}).get("chosenColor") or (action.metadata or {}).get("color")
     # Load valid colors from game config (required in JSON)
     valid_colors = _cfg(state).get("colors", [])
@@ -574,7 +577,7 @@ def _effect_defuse(state, player, card, effect, action, triggered):
 
 def _effect_peek(state, player, card, effect, action, triggered):
     """Reveal top N cards of the draw pile to the playing player only."""
-    n = effect.get("value", 3)
+    n = effect.get("value") or 3
     draw = _draw_zone(state)
     top_n = [c.name for c in (draw.cards[:n] if draw else [])]
     state.log.append(_log(
@@ -731,6 +734,19 @@ EFFECT_HANDLERS = {
     "combo_steal":  _effect_steal,
     "cancel":       _effect_any,
 }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Plugin system import (MUST be after utility functions to avoid circular import)
+# ─────────────────────────────────────────────────────────────────────────────
+# exploding_kittens.py imports _log, _active, _draw_zone, etc. from this module.
+# If we import plugin_loader at the top of the file, it triggers plugin discovery
+# which imports exploding_kittens.py before those functions are defined → ImportError.
+try:
+    from app.services.engines import plugin_loader
+    PLUGIN_AVAILABLE = True
+except ImportError:
+    PLUGIN_AVAILABLE = False
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -959,6 +975,20 @@ def setup_game(state: GameState):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def apply_action(state: GameState, action) -> Tuple[bool, str, List[str]]:
+    # Try plugin custom actions first
+    if PLUGIN_AVAILABLE:
+        game_id = state.metadata.get("gameId") or state.gameType
+        game_config = state.metadata.get("gameConfig", {})
+        plugin = plugin_loader.get_plugin(game_id, game_config)
+
+        if plugin:
+            custom_actions = plugin.get_custom_actions()
+            custom_handler = custom_actions.get(action.type)
+            if custom_handler:
+                # Plugin handles this action
+                return custom_handler(state, action)
+
+    # Fall back to universal actions
     dispatch = {
         "play_card":      _action_play_card,
         "draw_card":      _action_draw_card,
@@ -995,6 +1025,26 @@ def _action_play_card(state, action) -> Tuple[bool, str, List[str]]:
     if not _can_play_card(card, state):
         return False, "That card cannot be played right now", []
 
+    # Load plugin once for this card play
+    plugin = None
+    if PLUGIN_AVAILABLE:
+        game_id = state.metadata.get("gameId") or state.gameType
+        game_config = state.metadata.get("gameConfig", {})
+        plugin = plugin_loader.get_plugin(game_id, game_config)
+
+    # Call plugin lifecycle hook
+    hook_halt = False
+    if plugin:
+        try:
+            hook_result = plugin.on_card_played(state, player, card)
+            if hook_result:
+                if not hook_result.get("valid", True):
+                    return False, hook_result.get("error", "Invalid play"), []
+                if hook_result.get("halt_turn_advance"):
+                    hook_halt = True
+        except Exception as e:
+            print(f"Warning: Plugin on_card_played hook failed: {e}")
+
     # Remove from hand and place on discard
     player.hand.cards.remove(card)
     discard = _discard_zone(state)
@@ -1028,12 +1078,27 @@ def _action_play_card(state, action) -> Tuple[bool, str, List[str]]:
                 triggered.append(f"condition_failed:{reason}")
                 continue
 
-        handler = EFFECT_HANDLERS.get(etype)
+        # Check plugin custom effects first
+        handler = None
+        if plugin:
+            custom_effects = plugin.get_custom_effects()
+            handler = custom_effects.get(etype)
+
+        # Fall back to universal effect handlers
+        if handler is None:
+            handler = EFFECT_HANDLERS.get(etype)
+
         if handler is None:
             state.log.append(_log(f"{player.name} played {card.name}.", "action", player.id, card.id))
             continue
 
-        result = handler(state, player, card, edict, action, triggered)
+        try:
+            result = handler(state, player, card, edict, action, triggered)
+        except Exception as e:
+            print(f"Error in effect handler for {etype}: {e}")
+            import traceback
+            traceback.print_exc()
+            return False, f"Effect handler error: {str(e)}", []
 
         if result is None:
             continue
@@ -1108,7 +1173,8 @@ def _action_play_card(state, action) -> Tuple[bool, str, List[str]]:
         triggered.append(f"uno_warning:{player.id}")
         state.metadata.setdefault("unoCalledBy", [])
 
-    if not halt:
+    # Combine halt flags from effects and plugin hook
+    if not halt and not hook_halt:
         if extra_turn:
             # Same player goes again; just increment turn number
             state.turnNumber += 1
